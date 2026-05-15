@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_EVOLUTION_API_URL: ${VITE_EVOLUTION_API_URL}
+        VITE_DEFAULT_NEW_USER_PASSWORD: ${VITE_DEFAULT_NEW_USER_PASSWORD:-Imobi@1234}
+        VITE_ENABLE_ANON_LOGIN: ${VITE_ENABLE_ANON_LOGIN:-false}
+        VITE_FEATURE_RT_DEBUG_LEADS: ${VITE_FEATURE_RT_DEBUG_LEADS:-false}
+        VITE_FEATURE_RT_TRANSFER_FIX: ${VITE_FEATURE_RT_TRANSFER_FIX:-false}
+    container_name: imobdashboard_frontend
+    restart: unless-stopped
+    networks:
+      - proxy
+    ports:
+      - "8090:80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.imobdashboard.rule=Host(`imobdashboard.26121997.xyz`)"
+      - "traefik.http.routers.imobdashboard.entrypoints=websecure"
+      - "traefik.http.routers.imobdashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.imobdashboard.service=imobdashboard"
+      - "traefik.http.routers.imobdashboard-api.rule=Host(`imobdashboard-api.26121997.xyz`)"
+      - "traefik.http.routers.imobdashboard-api.entrypoints=websecure"
+      - "traefik.http.routers.imobdashboard-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.imobdashboard-api.service=imobdashboard"
+      - "traefik.http.services.imobdashboard.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true

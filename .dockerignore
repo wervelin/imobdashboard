@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.github
+.cursor
+.roo
+docs
+@docs
+supabase
+*.log
+.env.local
+.env.production
