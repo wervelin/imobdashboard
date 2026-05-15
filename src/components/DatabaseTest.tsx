@@ -19,7 +19,7 @@ export default function DatabaseTest() {
       addDiagnostic('🔍 Testando conexão com Supabase...');
       
       const { data, error } = await supabase
-        .from('properties')
+        .from('imoveisvivareal')
         .select('count', { count: 'exact', head: true });
 
       if (error) {
@@ -59,7 +59,7 @@ export default function DatabaseTest() {
       
       // Teste das propriedades
       const { data, error } = await supabase
-        .from('properties')
+        .from('imoveisvivareal')
         .select('count', { count: 'exact', head: true });
 
       if (error) {

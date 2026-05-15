@@ -49,7 +49,7 @@ export const ensureAuthenticated = async () => {
 
 // Teste básico de conectividade (silencioso caso falhe em dev)
 supabase
-  .from('properties')
+  .from('imoveisvivareal')
   .select('count', { count: 'exact', head: true })
   .then(({ error, count }) => {
     if (error) {

@@ -64,7 +64,7 @@ export function PropertyForm({ isOpen, onSubmit, onCancel }: PropertyFormProps) 
     try {
       // Buscar propriedades que tenham o código no título
       const { data, error } = await supabase
-        .from('properties')
+        .from('imoveisvivareal')
         .select('id, title')
         .like('title', `[${code.trim()}]%`);
 
@@ -279,7 +279,7 @@ export function PropertyForm({ isOpen, onSubmit, onCancel }: PropertyFormProps) 
       console.log('📋 Dados preparados para inserção:', propertyData);
 
       const { data: property, error: propertyError } = await supabase
-        .from('properties')
+        .from('imoveisvivareal')
         .insert(propertyData)
         .select()
         .single();

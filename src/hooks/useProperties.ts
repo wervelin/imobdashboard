@@ -25,7 +25,7 @@ export function useProperties() {
       setLoading(true);
       
       const { data, error } = await supabase
-        .from('properties')
+        .from('imoveisvivareal')
         .select(`
           *,
           property_images!property_images_property_id_fkey (*)
@@ -60,7 +60,7 @@ export function useProperties() {
 
       console.log('🏠 Criando propriedade:', propertyData);
       const { data, error } = await supabase
-        .from('properties')
+        .from('imoveisvivareal')
         .insert([{ ...propertyData, user_id: user.id }])
         .select()
         .single();
@@ -84,7 +84,7 @@ export function useProperties() {
     try {
       console.log('✏️ Atualizando propriedade:', id, updates);
       const { data, error } = await supabase
-        .from('properties')
+        .from('imoveisvivareal')
         .update(updates)
         .eq('id', id)
         .select()
@@ -109,7 +109,7 @@ export function useProperties() {
     try {
       console.log('🗑️ Deletando propriedade:', id);
       const { error } = await supabase
-        .from('properties')
+        .from('imoveisvivareal')
         .delete()
         .eq('id', id);
 

@@ -768,7 +768,7 @@ export function PropertyList({ properties, loading, onAddNew, refetch }: Propert
 
       // Depois, deletar a propriedade
       const { error: propertyError } = await supabase
-        .from('properties')
+        .from('imoveisvivareal')
         .delete()
         .eq('id', property.id);
 
@@ -1820,7 +1820,7 @@ export function PropertyList({ properties, loading, onAddNew, refetch }: Propert
                     } else {
                       // Atualizar tabela properties diretamente para propriedades legadas
                       const { error } = await supabase
-                        .from('properties')
+                        .from('imoveisvivareal')
                         .update({
                           disponibilidade: availabilityValue,
                           disponibilidade_observacao: availabilityNote || null

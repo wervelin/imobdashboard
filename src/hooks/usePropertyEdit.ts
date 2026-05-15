@@ -56,7 +56,7 @@ export function usePropertyEdit(property: PropertyWithImages) {
     console.log('🔍 Verificando se código existe (TEXT) - Edit:', code.trim());
     try {
       const { data, error, count } = await supabase
-        .from('properties')
+        .from('imoveisvivareal')
         .select('*', { count: 'exact', head: true })
         .eq('id', code.trim());
 
@@ -175,7 +175,7 @@ export function usePropertyEdit(property: PropertyWithImages) {
       if (formData.propertyCode !== property.id) {
         // Primeiro, criar um novo registro com o novo ID
         const { error: insertError } = await supabase
-          .from('properties')
+          .from('imoveisvivareal')
           .insert({
             id: formData.propertyCode.trim(),
             title: formData.title,
@@ -205,7 +205,7 @@ export function usePropertyEdit(property: PropertyWithImages) {
 
         // Deletar o registro antigo
         const { error: deleteError } = await supabase
-          .from('properties')
+          .from('imoveisvivareal')
           .delete()
           .eq('id', property.id);
 
@@ -213,7 +213,7 @@ export function usePropertyEdit(property: PropertyWithImages) {
       } else {
         // Apenas atualizar os dados existentes
         const { error: propertyError } = await supabase
-          .from('properties')
+          .from('imoveisvivareal')
           .update({
             title: formData.title,
             type: formData.type,
