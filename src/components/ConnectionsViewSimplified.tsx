@@ -48,6 +48,11 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { Switch } from "./ui/switch";
 import { Textarea } from "./ui/textarea";
 
+const EVOLUTION_API_BASE = (
+  import.meta.env.VITE_EVOLUTION_API_URL || 'https://evolution.26121997.xyz'
+).replace(/\/$/, '');
+const EVOLUTION_API_KEY = import.meta.env.VITE_EVOLUTION_API_KEY || '';
+
 export function ConnectionsViewSimplified() {
   const { profile, isManager } = useUserProfile();
   const { createConnectionRequest } = useNotifications();
@@ -159,7 +164,7 @@ export function ConnectionsViewSimplified() {
           phone_number: request.phone_number,
           request_status: 'approved',
           status: 'qr_code', // Pronto para gerar QR
-          webhook_url: `https://webhooklabz.n8nlabz.com.br/webhook/${request.instance_name}`,
+          webhook_url: `${EVOLUTION_API_BASE}/webhook/${request.instance_name}`,
           is_active: true
         })
         .select()
@@ -317,11 +322,12 @@ export function ConnectionsViewSimplified() {
           console.log('🔍 Verificando status da instância:', selectedInstance.name);
           
           // Chamar endpoint para verificar status da instância específica
-          const response = await fetch('https://devlabz.n8nlabz.com.br/webhook/whatsapp-instances', {
+          const response = await fetch(`${EVOLUTION_API_BASE}/instance/fetchInstances`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
+              ...(EVOLUTION_API_KEY ? { apikey: EVOLUTION_API_KEY } : {}),
             },
             mode: 'cors',
           });
@@ -333,9 +339,11 @@ export function ConnectionsViewSimplified() {
 
           const data = await response.json();
           
-          if (data.success && data.data) {
+          const instancesData = Array.isArray(data) ? data : data?.data;
+
+          if (Array.isArray(instancesData)) {
             // Procurar a instância específica na resposta
-            const updatedInstance = data.data.find((inst: any) => 
+            const updatedInstance = instancesData.find((inst: any) => 
               inst.name === selectedInstance.name || 
               inst.instanceName === selectedInstance.name
             );

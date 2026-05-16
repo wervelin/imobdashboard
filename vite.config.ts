@@ -11,12 +11,12 @@ export default defineConfig(({ mode }) => ({
     strictPort: true, // Não trocar de porta se 8081 estiver ocupada
     proxy: {
       '/api/webhook': {
-        target: 'https://webhooklabz.n8nlabz.com.br',
+        target: 'https://evolution.26121997.xyz',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/webhook/, '/webhook'),
+        rewrite: (path) => path.replace(/^\/api\/webhook/, ''),
         secure: true,
         headers: {
-          'Origin': 'https://webhooklabz.n8nlabz.com.br'
+          'Origin': 'https://evolution.26121997.xyz'
         }
       }
     }

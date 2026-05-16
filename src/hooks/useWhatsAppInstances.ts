@@ -75,8 +75,27 @@ export interface WhatsAppMessage {
   created_at: string;
 }
 
-// Base URL para os endpoints WhatsApp
-const WHATSAPP_API_BASE = 'https://devlabz.n8nlabz.com.br/webhook';
+// Base URL para Evolution API
+const EVOLUTION_API_BASE = (
+  import.meta.env.VITE_EVOLUTION_API_URL || 'https://evolution.26121997.xyz'
+).replace(/\/$/, '');
+const EVOLUTION_API_KEY = import.meta.env.VITE_EVOLUTION_API_KEY || '';
+
+const evolutionHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Accept': 'application/json',
+  ...(EVOLUTION_API_KEY ? { apikey: EVOLUTION_API_KEY } : {}),
+});
+
+const evolutionFetch = (path: string, init: RequestInit = {}) =>
+  fetch(`${EVOLUTION_API_BASE}${path}`, {
+    ...init,
+    headers: {
+      ...evolutionHeaders(),
+      ...(init.headers || {}),
+    },
+    mode: 'cors',
+  });
 
 export function useWhatsAppInstances() {
   const { profile, isManager } = useUserProfile();
@@ -97,13 +116,8 @@ export function useWhatsAppInstances() {
       // Buscar instâncias do endpoint externo
       console.log('📡 Chamando endpoint: GET /webhook/whatsapp-instances');
       
-      const response = await fetch(`${WHATSAPP_API_BASE}/whatsapp-instances`, {
+      const response = await evolutionFetch('/instance/fetchInstances', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        mode: 'cors',
       });
 
       if (!response.ok) {
@@ -113,11 +127,14 @@ export function useWhatsAppInstances() {
       const responseData = await response.json();
       console.log('✅ Resposta recebida do webhook:', responseData);
       
-      if (!responseData.success || !Array.isArray(responseData.data)) {
+      const externalInstances = Array.isArray(responseData)
+        ? responseData
+        : responseData?.data;
+
+      if (!Array.isArray(externalInstances)) {
         throw new Error('Formato de resposta inválido do endpoint');
       }
 
-      const externalInstances = responseData.data || [];
       console.log('📊 Total de instâncias no endpoint:', externalInstances.length);
 
       // Buscar mapeamentos locais para enrichment com dados de usuário
@@ -184,7 +201,7 @@ export function useWhatsAppInstances() {
             formatPhoneNumber(externalData.ownerJid.replace('@s.whatsapp.net', '')) : 
             null,
           api_key: externalData.token,
-          webhook_url: `${WHATSAPP_API_BASE}/${externalData.name}`,
+          webhook_url: `${EVOLUTION_API_BASE}/webhook/${externalData.name}`,
           created_at: externalData.createdAt || new Date().toISOString(),
           updated_at: externalData.updatedAt || new Date().toISOString(),
           // Campos do endpoint
@@ -293,16 +310,13 @@ export function useWhatsAppInstances() {
         sessionId: sessionId
       });
       
-      const response = await fetch(`${WHATSAPP_API_BASE}/criar-instancia`, {
+      const response = await evolutionFetch('/instance/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        mode: 'cors',
         body: JSON.stringify({
           instanceName: instanceData.instance_name,
-          phoneNumber: instanceData.phone_number,
+          number: instanceData.phone_number?.replace(/\D/g, '') || undefined,
+          integration: 'WHATSAPP-BAILEYS',
+          qrcode: true,
           sessionId: sessionId
         }),
       });
@@ -315,7 +329,7 @@ export function useWhatsAppInstances() {
       const data = await response.json();
       console.log('🔗 Instância criada no sistema externo:', data);
 
-      if (!data.success) {
+      if (data.success === false) {
         throw new Error(data.message || 'Falha ao criar instância');
       }
 
@@ -388,16 +402,8 @@ export function useWhatsAppInstances() {
       // 2. Deletar do sistema externo
       console.log('🗑️ Chamando endpoint: POST /webhook/deletar-instancia para', instanceToDelete.name);
       
-      const response = await fetch(`${WHATSAPP_API_BASE}/deletar-instancia`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        mode: 'cors',
-        body: JSON.stringify({
-          instanceName: instanceToDelete.name
-        }),
+      const response = await evolutionFetch(`/instance/delete/${encodeURIComponent(instanceToDelete.name)}`, {
+        method: 'DELETE',
       });
 
       if (!response.ok) {
@@ -410,7 +416,7 @@ export function useWhatsAppInstances() {
       const responseData = await response.json();
       console.log(`🗑️ Resposta da deleção externa:`, responseData);
       
-      if (!responseData.success) {
+      if (responseData.success === false) {
         throw new Error(responseData.message || 'Falha ao deletar no sistema externo');
       }
 
@@ -437,16 +443,8 @@ export function useWhatsAppInstances() {
 
       console.log('🔗 Chamando endpoint: POST /webhook/conectar-instancia para', instance.name);
 
-      const response = await fetch(`${WHATSAPP_API_BASE}/conectar-instancia`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        mode: 'cors',
-        body: JSON.stringify({
-          instanceName: instance.name
-        }),
+      const response = await evolutionFetch(`/instance/connect/${encodeURIComponent(instance.name)}`, {
+        method: 'GET',
       });
 
       if (!response.ok) {
@@ -459,7 +457,7 @@ export function useWhatsAppInstances() {
       const data = await response.json();
       console.log(`🔗 Resposta da conexão:`, data);
 
-      if (data.success) {
+      if (data.success !== false) {
         // Atualizar status local
         await updateInstanceStatus(instanceId, 'connected');
         try { 
@@ -489,16 +487,8 @@ export function useWhatsAppInstances() {
 
       console.log('🔌 Chamando endpoint: POST /webhook/desconectar-instancia para', instance.name);
 
-      const response = await fetch(`${WHATSAPP_API_BASE}/desconectar-instancia`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        mode: 'cors',
-        body: JSON.stringify({
-          instanceName: instance.name
-        }),
+      const response = await evolutionFetch(`/instance/logout/${encodeURIComponent(instance.name)}`, {
+        method: 'DELETE',
       });
 
       if (!response.ok) {
@@ -511,7 +501,7 @@ export function useWhatsAppInstances() {
       const data = await response.json();
       console.log(`🔌 Resposta da desconexão:`, data);
 
-      if (data.success) {
+      if (data.success !== false) {
         // Atualizar status local
         await updateInstanceStatus(instanceId, 'disconnected');
         try { 
@@ -541,16 +531,8 @@ export function useWhatsAppInstances() {
 
       console.log('📱 Chamando endpoint: POST /webhook/puxar-qrcode para', instance.name);
 
-      const response = await fetch(`${WHATSAPP_API_BASE}/puxar-qrcode`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        mode: 'cors',
-        body: JSON.stringify({
-          instanceName: instance.name
-        }),
+      const response = await evolutionFetch(`/instance/connect/${encodeURIComponent(instance.name)}`, {
+        method: 'GET',
       });
 
       if (!response.ok) {
@@ -751,15 +733,9 @@ export function useWhatsAppInstances() {
     try {
       console.log('⚙️ Chamando endpoint: POST /webhook/config-instancia para', instanceName);
       
-      const response = await fetch(`${WHATSAPP_API_BASE}/config-instancia`, {
+      const response = await evolutionFetch(`/settings/set/${encodeURIComponent(instanceName)}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        mode: 'cors',
         body: JSON.stringify({
-          instanceName,
           ...config
         }),
       });
@@ -786,15 +762,9 @@ export function useWhatsAppInstances() {
     try {
       console.log('✏️ Chamando endpoint: POST /webhook/edit-config-instancia para', instanceName);
       
-      const response = await fetch(`${WHATSAPP_API_BASE}/edit-config-instancia`, {
+      const response = await evolutionFetch(`/settings/set/${encodeURIComponent(instanceName)}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        mode: 'cors',
         body: JSON.stringify({
-          instanceName,
           ...newConfig
         }),
       });
