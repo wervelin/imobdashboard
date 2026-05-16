@@ -1,0 +1,1119 @@
+{
+  "name": "Match Imóveis #ImobiPro",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "imoveisvivareal4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        -816
+      ],
+      "id": "2bc67e4c-3eb5-434b-84d8-2c329df2839f",
+      "name": "Webhook",
+      "webhookId": "a0b67275-c726-41ea-83a7-acd3b77b7c00"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "interesse_imoveis",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "bairro",
+              "condition": "eq",
+              "keyValue": "={{ $json.body.bairro }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1664,
+        -816
+      ],
+      "id": "def00f53-09fc-45cd-aaa5-1a1238fd8163",
+      "name": "Get many rows",
+      "credentials": {
+        "supabaseApi": {
+          "id": "jO6khXA0YlIUNtjR",
+          "name": "Teste ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "queue": "fila_interesse",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rabbitmq",
+      "typeVersion": 1.1,
+      "position": [
+        2176,
+        -816
+      ],
+      "id": "a3eb5c5c-34e6-4733-8946-9a599bb769e5",
+      "name": "RabbitMQ",
+      "credentials": {
+        "rabbitmq": {
+          "id": "z1WHI6Y2yeHRCV18",
+          "name": "RabbitMQ account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "queue": "fila_interesse",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rabbitmqTrigger",
+      "typeVersion": 1,
+      "position": [
+        480,
+        -384
+      ],
+      "id": "8c9a2076-92af-47a2-8c34-97c637f8b47e",
+      "name": "RabbitMQ Trigger",
+      "credentials": {
+        "rabbitmq": {
+          "id": "z1WHI6Y2yeHRCV18",
+          "name": "RabbitMQ account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pega o conteúdo do campo 'content' e faz o parse do JSON\nconst data = JSON.parse($json.content).data;\n\n// Mapeia os dados dos interessados\nreturn data.map((item) => {\n  const { nome, telefone, bairro_interesse, imagens, imovel } = item;\n\n  return {\n    json: {\n      nome,\n      telefone,\n      bairro_interesse,\n      imagens,\n      imovel: {\n        endereco: imovel.endereco,\n        bairro: imovel.bairro,\n        cidade: imovel.cidade,\n        tipo_imovel: imovel.tipo_imovel,\n        tamanho_m2: imovel.tamanho_m2,\n        quartos: imovel.quartos,\n        banheiros: imovel.banheiros,\n        suite: imovel.suite,\n        preco: imovel.preco,\n        listing_id: imovel.listing_id,\n        descricao: imovel.descricao\n      }\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -384
+      ],
+      "id": "0282dfbf-5e76-4a4b-afe0-58e4d5fc0960",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Coleta os dados do webhook e da lista de clientes interessados\nconst imovel = $('Webhook').first().json.body;\nconst clientes = items;\n\n// 2. Validação básica\nif (!imovel.bairro || !Array.isArray(imovel.imagens)) {\n  throw new Error(\"Imóvel deve ter 'bairro' e 'imagens' definidas.\");\n}\n\n// 3. Função para embaralhar e pegar 5 imagens aleatórias\nfunction pegarImagensAleatorias(imagens) {\n  return imagens\n    .sort(() => 0.5 - Math.random())\n    .slice(0, 5);\n}\n\n// 4. Filtra e mapeia os clientes\nconst resultado = clientes\n  .filter(cli => cli.json.nome && cli.json.telefone)\n  .map(cli => {\n    return {\n      json: {\n        nome: cli.json.nome,\n        telefone: cli.json.telefone,\n        bairro_interesse: cli.json.bairro,\n        imagens: pegarImagensAleatorias(imovel.imagens),\n        imovel: {\n          endereco: imovel.endereco,\n          bairro: imovel.bairro,\n          cidade: imovel.cidade,\n          tipo_imovel: imovel.tipo_imovel,\n          tamanho_m2: imovel.tamanho_m2,\n          quartos: imovel.quartos,\n          banheiros: imovel.banheiros,\n          suite: imovel.suite,\n          preco: imovel.preco,\n          listing_id: imovel.listing_id,\n          descricao: imovel.descricao ?? null\n        }\n      }\n    };\n  });\n\n// 5. Retorno final\nreturn resultado;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        -816
+      ],
+      "id": "c7700fc0-1a77-4f49-8773-e12781192a83",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        -816
+      ],
+      "id": "5f1866d6-50c3-41da-bf75-7956ac0e08d4",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        880,
+        -384
+      ],
+      "id": "38b9d385-fd89-41f3-a122-2e19def67c40",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1136,
+        -176
+      ],
+      "id": "8d4b322f-3f19-4ab4-97d5-11719d5327be",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "rQFPB3DN2Bf0NfRw",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Cliente: {{ $json.nome }}\nBairro Interesse: {{ $json.bairro_interesse }}\nPreço Interesse: {{ $json.preco_interesse }}\nImóvel Encontrado:\nEndereço: {{ $json.imovel.endereco }}\nBairro: {{ $json.imovel.bairro }}\nCidade: {{ $json.imovel.cidade }}\nTamanho (m²): {{ $json.imovel.tamanho_m2 }}\nBanheiros: {{ $json.imovel.banheiros }}\nSuítes: {{ $json.imovel.suite }}\nPreço: {{ $json.imovel.preco }}\nDescrição: {{ $json.imovel.descricao }}\nQuartos: {{ $json.imovel.quartos }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=De acordo com as informações recebidas, crie uma mensagem de proposta para o cliente.\nVocê está enviando mensagem para um lead que demonstrou insteresse em um de nossos imóveis e está tentando reativar esse cliente. \n\nO cliente está recebendo o imóvel encontrado que foi adicionado na base de imoveis, ou seja, a sua mensagem deverá ser algo como: \nOlá [nome cliente], chegou uma super novidade até nós, lembrei de você e gostaria de compartilhar esse imovel com você.. \n\nSeja persuasivo para o cliente aceitar a visita, porém seja conciso na resposta. \n\nSeja conciso porém utilize técnicas de vendas avançadas para o cliente. \n\nSe possível, aplique técnicas de spin selling para criar desejo no cliente para agendar uma visita. \n\nNo final, ao falar de preço, insira sempre o \"por apenas\", para trazer a sensação ao cliente de um baixo preço porém de grande valor.\n\nAdicione também que vai enviar algumas fotos do imóvel, e caso ele queira saber mais, basta responder a mensagem. \n\nUtilize emojis de forma moderada para facilitar a leitura.\nInformações importantes use * antes da palavra e no final para formatar em negrito. \n\nUtilize quebra de linhas para facilitar\n\nUse uma linguagem natural e calorosa, traga a sensação ao cliente que um humano está enviando a mensagem e realmente lembrou do cliente.\n\nNão assine a mensagem com \"um abraço, [nome]\"\n"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1136,
+        -368
+      ],
+      "id": "d0b22604-562a-4da8-8210-d9eed7697dbe",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2448,
+        -384
+      ],
+      "id": "c97af5bc-bea0-4f0f-8f60-b5b932f6395a",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "n8nlabz",
+        "remoteJid": "={{ $('Loop Over Items').item.json.telefone }}",
+        "messageText": "={{ $json.output }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        -160
+      ],
+      "id": "038a0bd8-8c61-4c04-a6f9-d027958b4deb",
+      "name": "Enviar texto",
+      "credentials": {
+        "evolutionApi": {
+          "id": "f6KqF5dwrjajqZmP",
+          "name": "Evolution account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "operation": "send-image",
+        "instanceName": "n8nlabz",
+        "remoteJid": "={{ $('Loop Over Items').last().json.telefone }}",
+        "media": "={{ $json.imagem }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        2832,
+        -192
+      ],
+      "id": "09fec2d5-b7e7-4548-af52-d2bc44910149",
+      "name": "Enviar imagem",
+      "credentials": {
+        "evolutionApi": {
+          "id": "f6KqF5dwrjajqZmP",
+          "name": "Evolution account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const imagens = $('Loop Over Items').first().json.imagens;\n\nreturn imagens.map(url => ({ json: { imagem: url } }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2256,
+        -384
+      ],
+      "id": "10e63955-40bc-41ae-b703-05052cdd8e8a",
+      "name": "Code4"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "6dfca5b5-2f4d-4ebd-a817-f3c66cc5c41b",
+      "name": "OpenAI3",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        -176
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "rQFPB3DN2Bf0NfRw",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "88dea9bc-7207-4578-a2a8-27683c5efe0b",
+      "name": "Loop Over Items3",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2048,
+        -368
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"messages\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"required\": [\"messages\"]\n}\n"
+      },
+      "id": "6a2aee39-c801-44ae-bd66-c337ad23fe82",
+      "name": "OutputParser1",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        1696,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Whatsapp message to be splitted and formated: {{ $json.text }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Você é um assistente de formatação para WhatsApp e deve retornar as mensagens no formato JSON conforme as instruções abaixo.\n\n## OBJETIVO\nDividir um texto longo em mensagens menores e naturais para envio no WhatsApp.\n\n## FORMATO DE SAÍDA (OBRIGATÓRIO):\nRetorne **somente** um JSON com esta estrutura:\n\n{\n  \"messages\": [\n    \"mensagem 1\",\n    \"mensagem 2\",\n    \"mensagem 3\"\n  ]\n}\n\n## REGRAS ESSENCIAIS:\n- Nunca crie mensagens vazias.  \n- Divida o texto de forma natural, como se estivesse conversando com um humano.  \n- Preserve o sentido das frases. Não corte uma frase no meio.  \n\n## FORMATAÇÃO DO WHATSAPP:\n✅ Use o markdown correto do WhatsApp:\n- *negrito* → use `*` em vez de `**`\n- _itálico_ → se necessário (muito raro)\n- Use emojis, se presentes, no início da frase como estão no texto original"
+            }
+          ]
+        }
+      },
+      "id": "0be27717-abf1-4b4e-ae8e-c8a1fc50f886",
+      "name": "Parser  Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        1504,
+        -368
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output.messages",
+        "options": {
+          "destinationFieldName": "output"
+        }
+      },
+      "id": "3c69c91a-b64a-4770-a14f-1b0e2fdc48d0",
+      "name": "Split de Mensagem",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1856,
+        -368
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const numero = Math.floor(Math.random() * (7 - 2 + 1)) + 2;\n\nreturn [\n  {\n    json: {\n      numero\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        -160
+      ],
+      "id": "0a6d93d5-1b5a-4a1b-b3ca-a49702ae9b98",
+      "name": "Code5"
+    },
+    {
+      "parameters": {
+        "jsCode": "const numero = Math.floor(Math.random() * (15 - 5 + 1)) + 5;\nreturn [\n  {\n    json: {\n      numero\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        -400
+      ],
+      "id": "1722d433-10b9-400f-a402-830ac5658380",
+      "name": "Code6"
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.numero }}"
+      },
+      "id": "6d81e9d8-0549-420b-99bb-46642b56c024",
+      "name": "Random 5-15",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2848,
+        -400
+      ],
+      "webhookId": "c7b28df9-d948-480a-b199-b6d49b3c8b01"
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.numero }}"
+      },
+      "id": "9956ce3a-70b0-47c6-88c8-4b9dd969ced1",
+      "name": "Random 2-7",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2560,
+        -160
+      ],
+      "webhookId": "c7b28df9-d948-480a-b199-b6d49b3c8b01"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "devlabz",
+        "remoteJid": "5519994419319",
+        "messageText": "=Disparo feito a partir do Matching de Imóveis através de *BAIRRO* em {{ $now.format('dd/MM/yyyy') }} as {{ $now.hour.toString().padStart(2, '0') }}:{{ $now.minute.toString().padStart(2, '0') }}.",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        -544
+      ],
+      "id": "6e389e4d-97f7-40d1-9a81-fc2026339add",
+      "name": "Envia confirmação disparo para admin",
+      "credentials": {
+        "evolutionApi": {
+          "id": "zbqvM1wtXe4Ivrv2",
+          "name": "Devlabz"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Matching Bairro",
+        "height": 80,
+        "width": 304,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        448,
+        -560
+      ],
+      "typeVersion": 1,
+      "id": "00c2f759-9b65-4436-b222-04f1e0e63307",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 656,
+        "width": 2672,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        432,
+        -576
+      ],
+      "typeVersion": 1,
+      "id": "70e8797c-26ca-484e-aee6-b9a1e7a3a8a0",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "imoveisvivareal4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        512,
+        -816
+      ],
+      "id": "1754d2bf-17bc-4d12-94d9-68496e935152",
+      "name": "Webhook1",
+      "webhookId": "a0b67275-c726-41ea-83a7-acd3b77b7c00"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "interesse_imoveis",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "preco",
+              "condition": "lte",
+              "keyValue": "={{ $json.body.preco }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        704,
+        -816
+      ],
+      "id": "6fac32cc-5d32-4c2a-91d3-b578c65d6364",
+      "name": "Get many rows1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "jO6khXA0YlIUNtjR",
+          "name": "Teste ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "queue": "fila_interesse",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rabbitmq",
+      "typeVersion": 1.1,
+      "position": [
+        1216,
+        -816
+      ],
+      "id": "102a9fcb-3b92-41a8-84d6-c5f9496b8751",
+      "name": "RabbitMQ1",
+      "credentials": {
+        "rabbitmq": {
+          "id": "z1WHI6Y2yeHRCV18",
+          "name": "RabbitMQ account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Coleta os dados do webhook e da lista de clientes interessados\nconst imovel = $('Webhook1').first().json.body;\nconst clientes = items;\n\n// 2. Validação básica\nif (!imovel.bairro || !Array.isArray(imovel.imagens)) {\n  throw new Error(\"Imóvel deve ter 'bairro' e 'imagens' definidas.\");\n}\n\n// 3. Função para embaralhar e pegar 5 imagens aleatórias\nfunction pegarImagensAleatorias(imagens) {\n  return imagens\n    .sort(() => 0.5 - Math.random())\n    .slice(0, 5);\n}\n\n// 4. Filtra e mapeia os clientes\nconst resultado = clientes\n  .filter(cli => cli.json.nome && cli.json.telefone)\n  .map(cli => {\n    return {\n      json: {\n        nome: cli.json.nome,\n        telefone: cli.json.telefone,\n        bairro_interesse: cli.json.bairro,\n        imagens: pegarImagensAleatorias(imovel.imagens),\n        imovel: {\n          endereco: imovel.endereco,\n          bairro: imovel.bairro,\n          cidade: imovel.cidade,\n          tipo_imovel: imovel.tipo_imovel,\n          tamanho_m2: imovel.tamanho_m2,\n          quartos: imovel.quartos,\n          banheiros: imovel.banheiros,\n          suite: imovel.suite,\n          preco: imovel.preco,\n          listing_id: imovel.listing_id,\n          descricao: imovel.descricao ?? null\n        }\n      }\n    };\n  });\n\n// 5. Retorno final\nreturn resultado;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        -816
+      ],
+      "id": "de98e644-6d2f-47d6-99b1-fcdc6527214c",
+      "name": "Code7"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        -816
+      ],
+      "id": "14f7f318-e517-41d9-b03d-36660cb4c204",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "content": "# Matching Preço",
+        "height": 80,
+        "width": 304,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        448,
+        -928
+      ],
+      "typeVersion": 1,
+      "id": "a9655d18-6c5b-4052-90dc-227038611342",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 352,
+        "width": 976,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        432,
+        -944
+      ],
+      "typeVersion": 1,
+      "id": "00a482f1-defc-4a9c-80a6-6310e0cbb0b4",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "# Matching Bairro",
+        "height": 80,
+        "width": 304,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1440,
+        -928
+      ],
+      "typeVersion": 1,
+      "id": "a312ddaa-34c8-450e-87f5-117cf7ecd4de",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 352,
+        "width": 976,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1424,
+        -944
+      ],
+      "typeVersion": 1,
+      "id": "41a34242-404c-4333-8c0c-b7b8d0c27a36",
+      "name": "Sticky Note5"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.n8nlabz.com.br",
+            "user-agent": "pg_net/0.14.0",
+            "content-length": "6663",
+            "accept": "*/*",
+            "content-type": "application/json",
+            "x-forwarded-for": "18.220.166.13",
+            "x-forwarded-host": "webhook.n8nlabz.com.br",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "3271e4ed253d",
+            "x-real-ip": "18.220.166.13",
+            "accept-encoding": "gzip"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "id": 127,
+            "cep": "79010-480",
+            "andar": null,
+            "preco": 2500000,
+            "suite": 4,
+            "bairro": "São Francisco",
+            "blocos": null,
+            "cidade": "Campo Grande",
+            "numero": "831",
+            "garagem": 4,
+            "imagens": [
+              "https://lh3.googleusercontent.com/0ghkI7yaiK-xXAzaVpIKpMt4_vZBxjHrZwEwsd54bVHagZvbP3ACzC-n0-ZLmiOaWTmCHVdgL2YtCdxs9yMiHFwcce6DY8B8ov3y0-dR3aspqFkBuR0ZYJU=s0",
+              "https://lh3.googleusercontent.com/diU8Xt_ZB1Em7Su-NJIifklrlc7ePz_Bn8L77_WFW81ghctiDsELjmWyX5jXhiw9OqDjHXZdCpGGkniiw_k5RQKOTvvuTsunePy7IaS7b75T4gmZeXsI9Y0=s0",
+              "https://lh3.googleusercontent.com/M5dwjOOk40etVi11o6xH8JqAmDqnbIOt-0bO_eqGTgGFGoUM0CvBTJTzfzjSQ88jpgfvIQW-z_qFElt4LfUk5BujnGRLJXVwulpkrsdWEGh-W-Jw9EjKuJU=s0",
+              "https://lh3.googleusercontent.com/ESP8Zw8koV-6ZZWpP6GGVIk7qkLjd_Af9ZrDbUA0RaKh8Z8OqPpntK5rpv5Qn3oPKc3_zzCgkGuo6iw59wBx5C9-18o1tgmlC-hY9ZV2hX0qJsqODtlr-29p=s0",
+              "https://lh3.googleusercontent.com/tsLukOXPyglb5Zmy2_aM76o9PKuEBg8JdV9rwaTA8pswvOSXOLa12UkZKfZ4NaXOQJTHVct0Q-w1t3ym1dy4bfG1VssCe1dA_fFkq1HBYP9sx9oLmj1NWv0=s0",
+              "https://lh3.googleusercontent.com/Jfr2H4gP3VnOWnHKiZlmEk9glMdeso0siJNkwODMx8fjFYWUh8_CuBq7jHVhdQGBhp45MCBRQ6viiEx90YbUyoPvA5P0Avow_A3qCAzTQyAzmH5YcEcLAQ=s0",
+              "https://lh3.googleusercontent.com/sc_qCdqPwUFub9micGra-ebbSfDeIOy1ux-PqSUk2lp8kKre9SyZTlkHQ1Xw2k7G7em2yh1HIE6tfGEBNLX5AiDYNkMXj22coIYgXRP1uTTR7BxE3YpYbzI=s0",
+              "https://lh3.googleusercontent.com/3wr2coWkK60tgSZMBdAxLw7-PKwdj-ToajObN0zZq24bMzl7X26gyiUtt97MGrgM99WeTKtpXFxhtIOpgZJnMDsV8ZuLkz2a4OMVvgc28kyD9pGN1oTfu2o=s0",
+              "https://lh3.googleusercontent.com/hJkSqYFYED0jS2UoBnIyAwUzLjlQY7ew5UzeGEAiYiJiX-0DQK5vSjVelK35mVkFFTAojgdBbbtqG-L6RAySEnFQthpzC0q-IG5sNdDi_Y9Gf55qiJYRrrg=s0",
+              "https://lh3.googleusercontent.com/l8iQljKm2OrpprmVPA5RPqd7BP93Dy_SF4Bwwzf6js_s80h8adWviLvznIUew2U99wARsvrwlBUK6a_DDBdtwBy_36gXbshezSelRhaachK_ImxB1QltL94=s0",
+              "https://lh3.googleusercontent.com/dusQ6WQdtmjmCxjl4GT76ml4bSz_gQMrBmnshvNkY0gzvniDlCP6j01jFe-MAzMx1g4U2J4olDaaeTZJrdiUH3ojhSXF9GpbWRIMbrX_vEWKNLue0OVh4A=s0",
+              "https://lh3.googleusercontent.com/klQY37fzg0zeclgZVKvjHvWSaLpoWB5ljZe76RuuNecDuXyePgpoJRERY3JmhDurMjGraV0rerFILgrjsYeRHyz8MiqeIR2W_D-Bi4PZHgR6SeprScwYeQ=s0",
+              "https://lh3.googleusercontent.com/g-1_vQRO0HT9oGa_i7mUj6AJpJBjrG7vOz06f68iCJgBDza0E9b_DPRA-PK6pqp45uTrr5v5e647llwM1__PRcwtkh2Z5zxA45g1IvzwLllP9pOdhaG4PFI=s0",
+              "https://lh3.googleusercontent.com/THknM35EHkBtnVEnfH3yyFCvV-KvwC5AFehmCKaR9_T8zk6A5sc04P9ntdhDN8WfVyMUqnigI3GYri3O324FXwVhRd9lcqQdLc_Z0wP_gmZhPBNlNY8OIw=s0",
+              "https://lh3.googleusercontent.com/sO-tYjZYid_V0n9oiX0NIswSUNPNIqV8_nJvtI39joYs94QwSUAJx4CT5zHyCcAe5NAQmu69eyghST5dA9QrrnCkOevV7yxOhoTA5NSGRfM86UI9qsgz9Qw=s0",
+              "https://lh3.googleusercontent.com/irz_wSHKuqs5oewIsPatbsr1Q5XnVTF3AaB9_ZvLJoXwaEiWwbVM1fkPSy0iuX2pbChYnaWkT214B38ioWlMdqzPmkGfX1NaIID4kVXgAG7mjr67QocDUw=s0",
+              "https://lh3.googleusercontent.com/PzbQdJdUJlE1G4DEz3TOSqVjeUx8KRR21A40w3qD_jjTdi5yynhbG2otvpfWIjO7kxZ_VD2UdNQL5rKNUMs_9NeJxKCWqPSjOV3t1-nbKWITXQt4w92Lzck=s0",
+              "https://lh3.googleusercontent.com/xHTv7PB4VcxVyRvoNEDfj6mujjxl9dyW6Qp6YnmzEg7LC5gkCAWYXDWOKvtvaKC2M6V4FM26lSTSVBEO8pp3P2qq53TA-Q9mjZZVNcfCCLXjFa5-QM9lF1E=s0",
+              "https://lh3.googleusercontent.com/swT6he5rCLoZ8l4lSe1AlMq02WNM2MHV_GlyCSlGNxmD1ALZtr4Cohk9Av-gmhmsWX9AiRvfXAyimK1pAE2CBVSIHnJsPOOSd5CHJfd-4NYht2r0gny-KQ=s0",
+              "https://lh3.googleusercontent.com/hvEpGA-DbWiici2UfoMQVMQQh0ikntXfhRJzgPMKMFhWkUjho8JLbhDP58Fdc2k92EQ8fDF3hL6aklL-V6OM7O9giCUhpA66aV8Zjx44O79Fbt_kB72UROM=s0",
+              "https://lh3.googleusercontent.com/VHG5P7nxaGULnJ37KYSFqbj42Ch4a4sx32JA0Kd17sCrIq_ST18_axAwTKHwjApXND2w02HK2jFPzevoSwFTLzuZTRy-6546xGdYDe-f48GV_fRWBpbyF7g=s0",
+              "https://lh3.googleusercontent.com/AKnOT00ixQkk1KTidvzRHzDDNkdW4d6ZX14ZPKs2OTpSf0ktOugeCOmvt5sv-JNR8hsU3nq0VTU_WHx5co0m_py160PecaVXT_mNhaKhPvwsk3YKg7fDFg=s0",
+              "https://lh3.googleusercontent.com/vkAmcN4-mnEhH-dT8kol3Vl5VyhplSZWnMW2GHdGt7HVKoQxQVsVeHhZkqX9yA5k4R_NME_GUt-HmAZ3uhrgOeoEuYMWcM5pdCA4AOw_1X7ZVorODki_xKc=s0",
+              "https://lh3.googleusercontent.com/5Z81IZCSZ8zWWb2KgZteVEy5-kr1RjbK3QHcdhhz2vLMB41keSDNpbLoAcMMDVSLL8LwLYk7G5JF_9UzRsHk4Wv4WFjMLi7XvRhxkhFy66grkBaLyR8Lqqw=s0",
+              "https://lh3.googleusercontent.com/6gxBkZjdhL8DM6GVzVOXUElhybD6hxRSV2I7J8wayLEw__i6IhJmFkoP-ZCAv0mXXYltOUA0nPMZLfd9lfE22wd72WpG6FH5bXccotvuqTm2RtKTIgs6pOwc=s0",
+              "https://lh3.googleusercontent.com/7X6MGGb7qrHz_7WARJPtmZkmSHz7jD_YuEPFw7Vhs8fGNFHNlfadfR8wc4yvErYLtNi_dLaJlMUuTWNfMYKUBflJnf-8w2iAI2PCZqyW3AOLrSo3FK2I5oT9=s0",
+              "https://lh3.googleusercontent.com/EycekMTkj7yZSrXxoMv4jOWam3g1hzDQAMgdT2mfAmLH6Z___nk4kwsUUHFt9e7OmTn8D3_gxXzSymkCXcmF4sdmOxjRXXC5n3H8VDGSK4kBHnn-ZDZxf68=s0",
+              "https://lh3.googleusercontent.com/o6xLNUwAaghnzmwLTEMrxU81YBOB0PiKAw_ixVaQxP8P1QXdRrgpKzOGmlBMXk8F4beHXhvmKBCj3N4HVCGuZjXziDPngbCT0ODedrNON_Bi-y9iIh1w8pc=s0",
+              "https://lh3.googleusercontent.com/1DPge0NfrkHnzDnbOg2yf2DRdRreY2ZYycZup02oP_Q36SvYfvMBBdS9LYexTeMmIrIgHPZAUKEARUaJHsUmMe4Key5GwsBpNv-GX1GhYgH5h_v9k2dPGR2o=s0",
+              "https://lh3.googleusercontent.com/GwaEeQro8pN9YkiCIVAsjDvcCaRegT47SBfs0eU5RffwjXALYyONKKNGurBDRvXMtLF2p5JXoYCvBibwZjwk2akAmfY7nd4E0wPARce6qAYI80-tMJeZTg=s0",
+              "https://lh3.googleusercontent.com/kJuTdxDatUXvIH4eJ6yRhpPkDnZyaIYNqUs-2TC6A7847HuVXM6WP6MFDA9KeOwwZ83x7lmBxyEB26aNXbCu9X025ThK0F0e9Jn0oIttoXdGvn0h3GmB0yk=s0",
+              "https://lh3.googleusercontent.com/FfSMaUiKFaANog7A_WOVY7dNWh4WrI0mRdToUwchwHnuCTmxzON0Tue0nJ6DRbdh-bNgVM9tRexTbXndVXBcbeAu0cGcaXV7K4vBp7CakO0FVRZfD_s-gwA=s0",
+              "https://lh3.googleusercontent.com/ZXEroWXiUDOAJHicUd-ztb0lGojX2acb5Rh8Ap62wwXnQf-9Xevk0FNOs5LHJ6sQjfypBCGgY135S-qZL_2RLC_7wa6wQA3I6efxdY97h9_cjF8W-IDjaHM=s0"
+            ],
+            "quartos": 1,
+            "endereco": "Rua Sebastião Taveira",
+            "features": [],
+            "banheiros": 5,
+            "descricao": "Descubra o equilíbrio perfeito entre sofisticação, conforto e lazer neste &lt;b&gt;sobrado exclusivo disponível para venda no bairro São Francisco.&lt;/b&gt; Com 450m² de área construída, este imóvel foi cuidadosamente planejado para oferecer ambientes amplos e elegantes, ideal para famílias que buscam qualidade de vida.&lt;br&gt; &lt;b&gt;Com quatro suítes espaçosas e quatro vagas de garagem,&lt;/b&gt; cada detalhe foi pensado para proporcionar bem-estar e praticidade. A área de lazer se destaca como o coração da residência, com uma piscina convidativa e um espaço gourmet com churrasqueira, perfeito para reunir amigos e familiares em momentos inesquecíveis.&lt;br&gt; Localizado em uma das regiões mais valorizadas no São Francisco, &lt;b&gt;este sobrado está disponível por R$ 2.500.000,00.&lt;/b&gt; Agende uma visita e surpreenda-se com cada detalhe deste imóvel único que une conforto, segurança e estilo.&lt;br&gt;",
+            "listing_id": "257",
+            "tamanho_m2": 450,
+            "complemento": null,
+            "tipo_imovel": "Sobrado",
+            "ano_construcao": 0,
+            "tipo_categoria": "Residential"
+          },
+          "webhookUrl": "https://webhook.n8nlabz.com.br/webhook/imoveisvivareal4",
+          "executionMode": "production"
+        }
+      }
+    ],
+    "Webhook1": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.n8nlabz.com.br",
+            "user-agent": "pg_net/0.14.0",
+            "content-length": "6663",
+            "accept": "*/*",
+            "content-type": "application/json",
+            "x-forwarded-for": "18.220.166.13",
+            "x-forwarded-host": "webhook.n8nlabz.com.br",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "3271e4ed253d",
+            "x-real-ip": "18.220.166.13",
+            "accept-encoding": "gzip"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "id": 127,
+            "cep": "79010-480",
+            "andar": null,
+            "preco": 2500000,
+            "suite": 4,
+            "bairro": "São Francisco",
+            "blocos": null,
+            "cidade": "Campo Grande",
+            "numero": "831",
+            "garagem": 4,
+            "imagens": [
+              "https://lh3.googleusercontent.com/0ghkI7yaiK-xXAzaVpIKpMt4_vZBxjHrZwEwsd54bVHagZvbP3ACzC-n0-ZLmiOaWTmCHVdgL2YtCdxs9yMiHFwcce6DY8B8ov3y0-dR3aspqFkBuR0ZYJU=s0",
+              "https://lh3.googleusercontent.com/diU8Xt_ZB1Em7Su-NJIifklrlc7ePz_Bn8L77_WFW81ghctiDsELjmWyX5jXhiw9OqDjHXZdCpGGkniiw_k5RQKOTvvuTsunePy7IaS7b75T4gmZeXsI9Y0=s0",
+              "https://lh3.googleusercontent.com/M5dwjOOk40etVi11o6xH8JqAmDqnbIOt-0bO_eqGTgGFGoUM0CvBTJTzfzjSQ88jpgfvIQW-z_qFElt4LfUk5BujnGRLJXVwulpkrsdWEGh-W-Jw9EjKuJU=s0",
+              "https://lh3.googleusercontent.com/ESP8Zw8koV-6ZZWpP6GGVIk7qkLjd_Af9ZrDbUA0RaKh8Z8OqPpntK5rpv5Qn3oPKc3_zzCgkGuo6iw59wBx5C9-18o1tgmlC-hY9ZV2hX0qJsqODtlr-29p=s0",
+              "https://lh3.googleusercontent.com/tsLukOXPyglb5Zmy2_aM76o9PKuEBg8JdV9rwaTA8pswvOSXOLa12UkZKfZ4NaXOQJTHVct0Q-w1t3ym1dy4bfG1VssCe1dA_fFkq1HBYP9sx9oLmj1NWv0=s0",
+              "https://lh3.googleusercontent.com/Jfr2H4gP3VnOWnHKiZlmEk9glMdeso0siJNkwODMx8fjFYWUh8_CuBq7jHVhdQGBhp45MCBRQ6viiEx90YbUyoPvA5P0Avow_A3qCAzTQyAzmH5YcEcLAQ=s0",
+              "https://lh3.googleusercontent.com/sc_qCdqPwUFub9micGra-ebbSfDeIOy1ux-PqSUk2lp8kKre9SyZTlkHQ1Xw2k7G7em2yh1HIE6tfGEBNLX5AiDYNkMXj22coIYgXRP1uTTR7BxE3YpYbzI=s0",
+              "https://lh3.googleusercontent.com/3wr2coWkK60tgSZMBdAxLw7-PKwdj-ToajObN0zZq24bMzl7X26gyiUtt97MGrgM99WeTKtpXFxhtIOpgZJnMDsV8ZuLkz2a4OMVvgc28kyD9pGN1oTfu2o=s0",
+              "https://lh3.googleusercontent.com/hJkSqYFYED0jS2UoBnIyAwUzLjlQY7ew5UzeGEAiYiJiX-0DQK5vSjVelK35mVkFFTAojgdBbbtqG-L6RAySEnFQthpzC0q-IG5sNdDi_Y9Gf55qiJYRrrg=s0",
+              "https://lh3.googleusercontent.com/l8iQljKm2OrpprmVPA5RPqd7BP93Dy_SF4Bwwzf6js_s80h8adWviLvznIUew2U99wARsvrwlBUK6a_DDBdtwBy_36gXbshezSelRhaachK_ImxB1QltL94=s0",
+              "https://lh3.googleusercontent.com/dusQ6WQdtmjmCxjl4GT76ml4bSz_gQMrBmnshvNkY0gzvniDlCP6j01jFe-MAzMx1g4U2J4olDaaeTZJrdiUH3ojhSXF9GpbWRIMbrX_vEWKNLue0OVh4A=s0",
+              "https://lh3.googleusercontent.com/klQY37fzg0zeclgZVKvjHvWSaLpoWB5ljZe76RuuNecDuXyePgpoJRERY3JmhDurMjGraV0rerFILgrjsYeRHyz8MiqeIR2W_D-Bi4PZHgR6SeprScwYeQ=s0",
+              "https://lh3.googleusercontent.com/g-1_vQRO0HT9oGa_i7mUj6AJpJBjrG7vOz06f68iCJgBDza0E9b_DPRA-PK6pqp45uTrr5v5e647llwM1__PRcwtkh2Z5zxA45g1IvzwLllP9pOdhaG4PFI=s0",
+              "https://lh3.googleusercontent.com/THknM35EHkBtnVEnfH3yyFCvV-KvwC5AFehmCKaR9_T8zk6A5sc04P9ntdhDN8WfVyMUqnigI3GYri3O324FXwVhRd9lcqQdLc_Z0wP_gmZhPBNlNY8OIw=s0",
+              "https://lh3.googleusercontent.com/sO-tYjZYid_V0n9oiX0NIswSUNPNIqV8_nJvtI39joYs94QwSUAJx4CT5zHyCcAe5NAQmu69eyghST5dA9QrrnCkOevV7yxOhoTA5NSGRfM86UI9qsgz9Qw=s0",
+              "https://lh3.googleusercontent.com/irz_wSHKuqs5oewIsPatbsr1Q5XnVTF3AaB9_ZvLJoXwaEiWwbVM1fkPSy0iuX2pbChYnaWkT214B38ioWlMdqzPmkGfX1NaIID4kVXgAG7mjr67QocDUw=s0",
+              "https://lh3.googleusercontent.com/PzbQdJdUJlE1G4DEz3TOSqVjeUx8KRR21A40w3qD_jjTdi5yynhbG2otvpfWIjO7kxZ_VD2UdNQL5rKNUMs_9NeJxKCWqPSjOV3t1-nbKWITXQt4w92Lzck=s0",
+              "https://lh3.googleusercontent.com/xHTv7PB4VcxVyRvoNEDfj6mujjxl9dyW6Qp6YnmzEg7LC5gkCAWYXDWOKvtvaKC2M6V4FM26lSTSVBEO8pp3P2qq53TA-Q9mjZZVNcfCCLXjFa5-QM9lF1E=s0",
+              "https://lh3.googleusercontent.com/swT6he5rCLoZ8l4lSe1AlMq02WNM2MHV_GlyCSlGNxmD1ALZtr4Cohk9Av-gmhmsWX9AiRvfXAyimK1pAE2CBVSIHnJsPOOSd5CHJfd-4NYht2r0gny-KQ=s0",
+              "https://lh3.googleusercontent.com/hvEpGA-DbWiici2UfoMQVMQQh0ikntXfhRJzgPMKMFhWkUjho8JLbhDP58Fdc2k92EQ8fDF3hL6aklL-V6OM7O9giCUhpA66aV8Zjx44O79Fbt_kB72UROM=s0",
+              "https://lh3.googleusercontent.com/VHG5P7nxaGULnJ37KYSFqbj42Ch4a4sx32JA0Kd17sCrIq_ST18_axAwTKHwjApXND2w02HK2jFPzevoSwFTLzuZTRy-6546xGdYDe-f48GV_fRWBpbyF7g=s0",
+              "https://lh3.googleusercontent.com/AKnOT00ixQkk1KTidvzRHzDDNkdW4d6ZX14ZPKs2OTpSf0ktOugeCOmvt5sv-JNR8hsU3nq0VTU_WHx5co0m_py160PecaVXT_mNhaKhPvwsk3YKg7fDFg=s0",
+              "https://lh3.googleusercontent.com/vkAmcN4-mnEhH-dT8kol3Vl5VyhplSZWnMW2GHdGt7HVKoQxQVsVeHhZkqX9yA5k4R_NME_GUt-HmAZ3uhrgOeoEuYMWcM5pdCA4AOw_1X7ZVorODki_xKc=s0",
+              "https://lh3.googleusercontent.com/5Z81IZCSZ8zWWb2KgZteVEy5-kr1RjbK3QHcdhhz2vLMB41keSDNpbLoAcMMDVSLL8LwLYk7G5JF_9UzRsHk4Wv4WFjMLi7XvRhxkhFy66grkBaLyR8Lqqw=s0",
+              "https://lh3.googleusercontent.com/6gxBkZjdhL8DM6GVzVOXUElhybD6hxRSV2I7J8wayLEw__i6IhJmFkoP-ZCAv0mXXYltOUA0nPMZLfd9lfE22wd72WpG6FH5bXccotvuqTm2RtKTIgs6pOwc=s0",
+              "https://lh3.googleusercontent.com/7X6MGGb7qrHz_7WARJPtmZkmSHz7jD_YuEPFw7Vhs8fGNFHNlfadfR8wc4yvErYLtNi_dLaJlMUuTWNfMYKUBflJnf-8w2iAI2PCZqyW3AOLrSo3FK2I5oT9=s0",
+              "https://lh3.googleusercontent.com/EycekMTkj7yZSrXxoMv4jOWam3g1hzDQAMgdT2mfAmLH6Z___nk4kwsUUHFt9e7OmTn8D3_gxXzSymkCXcmF4sdmOxjRXXC5n3H8VDGSK4kBHnn-ZDZxf68=s0",
+              "https://lh3.googleusercontent.com/o6xLNUwAaghnzmwLTEMrxU81YBOB0PiKAw_ixVaQxP8P1QXdRrgpKzOGmlBMXk8F4beHXhvmKBCj3N4HVCGuZjXziDPngbCT0ODedrNON_Bi-y9iIh1w8pc=s0",
+              "https://lh3.googleusercontent.com/1DPge0NfrkHnzDnbOg2yf2DRdRreY2ZYycZup02oP_Q36SvYfvMBBdS9LYexTeMmIrIgHPZAUKEARUaJHsUmMe4Key5GwsBpNv-GX1GhYgH5h_v9k2dPGR2o=s0",
+              "https://lh3.googleusercontent.com/GwaEeQro8pN9YkiCIVAsjDvcCaRegT47SBfs0eU5RffwjXALYyONKKNGurBDRvXMtLF2p5JXoYCvBibwZjwk2akAmfY7nd4E0wPARce6qAYI80-tMJeZTg=s0",
+              "https://lh3.googleusercontent.com/kJuTdxDatUXvIH4eJ6yRhpPkDnZyaIYNqUs-2TC6A7847HuVXM6WP6MFDA9KeOwwZ83x7lmBxyEB26aNXbCu9X025ThK0F0e9Jn0oIttoXdGvn0h3GmB0yk=s0",
+              "https://lh3.googleusercontent.com/FfSMaUiKFaANog7A_WOVY7dNWh4WrI0mRdToUwchwHnuCTmxzON0Tue0nJ6DRbdh-bNgVM9tRexTbXndVXBcbeAu0cGcaXV7K4vBp7CakO0FVRZfD_s-gwA=s0",
+              "https://lh3.googleusercontent.com/ZXEroWXiUDOAJHicUd-ztb0lGojX2acb5Rh8Ap62wwXnQf-9Xevk0FNOs5LHJ6sQjfypBCGgY135S-qZL_2RLC_7wa6wQA3I6efxdY97h9_cjF8W-IDjaHM=s0"
+            ],
+            "quartos": 1,
+            "endereco": "Rua Sebastião Taveira",
+            "features": [],
+            "banheiros": 5,
+            "descricao": "Descubra o equilíbrio perfeito entre sofisticação, conforto e lazer neste &lt;b&gt;sobrado exclusivo disponível para venda no bairro São Francisco.&lt;/b&gt; Com 450m² de área construída, este imóvel foi cuidadosamente planejado para oferecer ambientes amplos e elegantes, ideal para famílias que buscam qualidade de vida.&lt;br&gt; &lt;b&gt;Com quatro suítes espaçosas e quatro vagas de garagem,&lt;/b&gt; cada detalhe foi pensado para proporcionar bem-estar e praticidade. A área de lazer se destaca como o coração da residência, com uma piscina convidativa e um espaço gourmet com churrasqueira, perfeito para reunir amigos e familiares em momentos inesquecíveis.&lt;br&gt; Localizado em uma das regiões mais valorizadas no São Francisco, &lt;b&gt;este sobrado está disponível por R$ 2.500.000,00.&lt;/b&gt; Agende uma visita e surpreenda-se com cada detalhe deste imóvel único que une conforto, segurança e estilo.&lt;br&gt;",
+            "listing_id": "257",
+            "tamanho_m2": 450,
+            "complemento": null,
+            "tipo_imovel": "Sobrado",
+            "ano_construcao": 0,
+            "tipo_categoria": "Residential"
+          },
+          "webhookUrl": "https://webhook.n8nlabz.com.br/webhook/imoveisvivareal4",
+          "executionMode": "production"
+        }
+      }
+    ],
+    "RabbitMQ Trigger": [
+      {
+        "json": {
+          "fields": {
+            "consumerTag": "amq.ctag-YK-zgYQPyV2R-MciLadw4g",
+            "deliveryTag": 1,
+            "redelivered": false,
+            "exchange": "",
+            "routingKey": "fila_interesse"
+          },
+          "properties": {
+            "headers": {}
+          },
+          "content": "{\"data\":[{\"nome\":\"Renata Moura\",\"telefone\":\"5519994419319@s.whatsapp.net\",\"bairro_interesse\":\"São Francisco\",\"imagens\":[\"https://lh3.googleusercontent.com/o6xLNUwAaghnzmwLTEMrxU81YBOB0PiKAw_ixVaQxP8P1QXdRrgpKzOGmlBMXk8F4beHXhvmKBCj3N4HVCGuZjXziDPngbCT0ODedrNON_Bi-y9iIh1w8pc=s0\",\"https://lh3.googleusercontent.com/l8iQljKm2OrpprmVPA5RPqd7BP93Dy_SF4Bwwzf6js_s80h8adWviLvznIUew2U99wARsvrwlBUK6a_DDBdtwBy_36gXbshezSelRhaachK_ImxB1QltL94=s0\",\"https://lh3.googleusercontent.com/7X6MGGb7qrHz_7WARJPtmZkmSHz7jD_YuEPFw7Vhs8fGNFHNlfadfR8wc4yvErYLtNi_dLaJlMUuTWNfMYKUBflJnf-8w2iAI2PCZqyW3AOLrSo3FK2I5oT9=s0\",\"https://lh3.googleusercontent.com/THknM35EHkBtnVEnfH3yyFCvV-KvwC5AFehmCKaR9_T8zk6A5sc04P9ntdhDN8WfVyMUqnigI3GYri3O324FXwVhRd9lcqQdLc_Z0wP_gmZhPBNlNY8OIw=s0\",\"https://lh3.googleusercontent.com/Jfr2H4gP3VnOWnHKiZlmEk9glMdeso0siJNkwODMx8fjFYWUh8_CuBq7jHVhdQGBhp45MCBRQ6viiEx90YbUyoPvA5P0Avow_A3qCAzTQyAzmH5YcEcLAQ=s0\"],\"imovel\":{\"endereco\":\"Rua Sebastião Taveira\",\"bairro\":\"São Francisco\",\"cidade\":\"Campo Grande\",\"tipo_imovel\":\"Sobrado\",\"tamanho_m2\":450,\"quartos\":1,\"banheiros\":5,\"suite\":4,\"preco\":2500000,\"listing_id\":\"257\",\"descricao\":\"Descubra o equilíbrio perfeito entre sofisticação, conforto e lazer neste &lt;b&gt;sobrado exclusivo disponível para venda no bairro São Francisco.&lt;/b&gt; Com 450m² de área construída, este imóvel foi cuidadosamente planejado para oferecer ambientes amplos e elegantes, ideal para famílias que buscam qualidade de vida.&lt;br&gt; &lt;b&gt;Com quatro suítes espaçosas e quatro vagas de garagem,&lt;/b&gt; cada detalhe foi pensado para proporcionar bem-estar e praticidade. A área de lazer se destaca como o coração da residência, com uma piscina convidativa e um espaço gourmet com churrasqueira, perfeito para reunir amigos e familiares em momentos inesquecíveis.&lt;br&gt; Localizado em uma das regiões mais valorizadas no São Francisco, &lt;b&gt;este sobrado está disponível por R$ 2.500.000,00.&lt;/b&gt; Agende uma visita e surpreenda-se com cada detalhe deste imóvel único que une conforto, segurança e estilo.&lt;br&gt;\"}},{\"nome\":\"Diego Fernandes\",\"telefone\":\"5567910000002@s.whatsapp.net\",\"bairro_interesse\":\"São Francisco\",\"imagens\":[\"https://lh3.googleusercontent.com/ESP8Zw8koV-6ZZWpP6GGVIk7qkLjd_Af9ZrDbUA0RaKh8Z8OqPpntK5rpv5Qn3oPKc3_zzCgkGuo6iw59wBx5C9-18o1tgmlC-hY9ZV2hX0qJsqODtlr-29p=s0\",\"https://lh3.googleusercontent.com/EycekMTkj7yZSrXxoMv4jOWam3g1hzDQAMgdT2mfAmLH6Z___nk4kwsUUHFt9e7OmTn8D3_gxXzSymkCXcmF4sdmOxjRXXC5n3H8VDGSK4kBHnn-ZDZxf68=s0\",\"https://lh3.googleusercontent.com/dusQ6WQdtmjmCxjl4GT76ml4bSz_gQMrBmnshvNkY0gzvniDlCP6j01jFe-MAzMx1g4U2J4olDaaeTZJrdiUH3ojhSXF9GpbWRIMbrX_vEWKNLue0OVh4A=s0\",\"https://lh3.googleusercontent.com/diU8Xt_ZB1Em7Su-NJIifklrlc7ePz_Bn8L77_WFW81ghctiDsELjmWyX5jXhiw9OqDjHXZdCpGGkniiw_k5RQKOTvvuTsunePy7IaS7b75T4gmZeXsI9Y0=s0\",\"https://lh3.googleusercontent.com/swT6he5rCLoZ8l4lSe1AlMq02WNM2MHV_GlyCSlGNxmD1ALZtr4Cohk9Av-gmhmsWX9AiRvfXAyimK1pAE2CBVSIHnJsPOOSd5CHJfd-4NYht2r0gny-KQ=s0\"],\"imovel\":{\"endereco\":\"Rua Sebastião Taveira\",\"bairro\":\"São Francisco\",\"cidade\":\"Campo Grande\",\"tipo_imovel\":\"Sobrado\",\"tamanho_m2\":450,\"quartos\":1,\"banheiros\":5,\"suite\":4,\"preco\":2500000,\"listing_id\":\"257\",\"descricao\":\"Descubra o equilíbrio perfeito entre sofisticação, conforto e lazer neste &lt;b&gt;sobrado exclusivo disponível para venda no bairro São Francisco.&lt;/b&gt; Com 450m² de área construída, este imóvel foi cuidadosamente planejado para oferecer ambientes amplos e elegantes, ideal para famílias que buscam qualidade de vida.&lt;br&gt; &lt;b&gt;Com quatro suítes espaçosas e quatro vagas de garagem,&lt;/b&gt; cada detalhe foi pensado para proporcionar bem-estar e praticidade. A área de lazer se destaca como o coração da residência, com uma piscina convidativa e um espaço gourmet com churrasqueira, perfeito para reunir amigos e familiares em momentos inesquecíveis.&lt;br&gt; Localizado em uma das regiões mais valorizadas no São Francisco, &lt;b&gt;este sobrado está disponível por R$ 2.500.000,00.&lt;/b&gt; Agende uma visita e surpreenda-se com cada detalhe deste imóvel único que une conforto, segurança e estilo.&lt;br&gt;\"}},{\"nome\":\"Marina Duarte\",\"telefone\":\"5567910000007@s.whatsapp.net\",\"bairro_interesse\":\"São Francisco\",\"imagens\":[\"https://lh3.googleusercontent.com/sO-tYjZYid_V0n9oiX0NIswSUNPNIqV8_nJvtI39joYs94QwSUAJx4CT5zHyCcAe5NAQmu69eyghST5dA9QrrnCkOevV7yxOhoTA5NSGRfM86UI9qsgz9Qw=s0\",\"https://lh3.googleusercontent.com/VHG5P7nxaGULnJ37KYSFqbj42Ch4a4sx32JA0Kd17sCrIq_ST18_axAwTKHwjApXND2w02HK2jFPzevoSwFTLzuZTRy-6546xGdYDe-f48GV_fRWBpbyF7g=s0\",\"https://lh3.googleusercontent.com/GwaEeQro8pN9YkiCIVAsjDvcCaRegT47SBfs0eU5RffwjXALYyONKKNGurBDRvXMtLF2p5JXoYCvBibwZjwk2akAmfY7nd4E0wPARce6qAYI80-tMJeZTg=s0\",\"https://lh3.googleusercontent.com/kJuTdxDatUXvIH4eJ6yRhpPkDnZyaIYNqUs-2TC6A7847HuVXM6WP6MFDA9KeOwwZ83x7lmBxyEB26aNXbCu9X025ThK0F0e9Jn0oIttoXdGvn0h3GmB0yk=s0\",\"https://lh3.googleusercontent.com/l8iQljKm2OrpprmVPA5RPqd7BP93Dy_SF4Bwwzf6js_s80h8adWviLvznIUew2U99wARsvrwlBUK6a_DDBdtwBy_36gXbshezSelRhaachK_ImxB1QltL94=s0\"],\"imovel\":{\"endereco\":\"Rua Sebastião Taveira\",\"bairro\":\"São Francisco\",\"cidade\":\"Campo Grande\",\"tipo_imovel\":\"Sobrado\",\"tamanho_m2\":450,\"quartos\":1,\"banheiros\":5,\"suite\":4,\"preco\":2500000,\"listing_id\":\"257\",\"descricao\":\"Descubra o equilíbrio perfeito entre sofisticação, conforto e lazer neste &lt;b&gt;sobrado exclusivo disponível para venda no bairro São Francisco.&lt;/b&gt; Com 450m² de área construída, este imóvel foi cuidadosamente planejado para oferecer ambientes amplos e elegantes, ideal para famílias que buscam qualidade de vida.&lt;br&gt; &lt;b&gt;Com quatro suítes espaçosas e quatro vagas de garagem,&lt;/b&gt; cada detalhe foi pensado para proporcionar bem-estar e praticidade. A área de lazer se destaca como o coração da residência, com uma piscina convidativa e um espaço gourmet com churrasqueira, perfeito para reunir amigos e familiares em momentos inesquecíveis.&lt;br&gt; Localizado em uma das regiões mais valorizadas no São Francisco, &lt;b&gt;este sobrado está disponível por R$ 2.500.000,00.&lt;/b&gt; Agende uma visita e surpreenda-se com cada detalhe deste imóvel único que une conforto, segurança e estilo.&lt;br&gt;\"}}]}"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RabbitMQ Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "RabbitMQ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Envia confirmação disparo para admin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Parser  Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Code6",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar imagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar texto": {
+      "main": [
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar imagem": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Parser  Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items3": {
+      "main": [
+        [
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OutputParser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Parser  Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser  Chain": {
+      "main": [
+        [
+          {
+            "node": "Split de Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split de Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "Random 2-7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code6": {
+      "main": [
+        [
+          {
+            "node": "Random 5-15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Random 5-15": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Random 2-7": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Get many rows1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows1": {
+      "main": [
+        [
+          {
+            "node": "Code7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code7": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "RabbitMQ1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "278a6eb7-a6ef-44cf-a5fb-c63f215874d5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "af2c2dce58b7b891043a58fa084cb85b78cc3ee626cfa19de4b473f0aab51bb8"
+  },
+  "id": "Cu1jQexObWeCqoIR",
+  "tags": []
+}

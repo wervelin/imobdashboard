@@ -1,0 +1,279 @@
+{
+  "name": "Envio de Imagens #ImobiPro",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "envia_imagem_imovel",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -816,
+        128
+      ],
+      "id": "88fd1d4b-9bb9-45a0-9a52-9f78695e1993",
+      "name": "Webhook",
+      "webhookId": "3eca279c-4c70-4906-8e5f-076570f2c7a1"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "operation": "send-image",
+        "instanceName": "={{ $('Webhook').item.json.body.instancia }}",
+        "remoteJid": "={{ $('Webhook').item.json.body.telefone_cliente }}",
+        "media": "={{ $json.imagens }}",
+        "caption": "=",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        208,
+        144
+      ],
+      "id": "264555a7-26d5-4014-8283-6c82ec8ab509",
+      "name": "Enviar imagem",
+      "credentials": {
+        "evolutionApi": {
+          "id": "zbqvM1wtXe4Ivrv2",
+          "name": "Devlabz"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -32,
+        128
+      ],
+      "id": "ead7efa4-d938-4c87-b473-662e886859f3",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "daf09921-99c2-4b45-b5f3-95af9a4e49cf",
+              "name": "response",
+              "value": "Acabei de te enviar as imagens ",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "e1e4ca2f-dddd-41da-a486-a07283ced7f9",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        384,
+        0
+      ],
+      "id": "de01d659-c9ca-4ebb-8f2b-f6b921d66c88",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "imoveisvivareal4",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "listing_id",
+              "keyValue": "={{ $json.body.listing_id_do_imovel }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        128
+      ],
+      "id": "e9980b61-8f10-41f9-b022-850225fce258",
+      "name": "Get a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "jO6khXA0YlIUNtjR",
+          "name": "Teste ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "imagens",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        128
+      ],
+      "id": "8b22887c-3611-4cc9-bd0f-2dbaf868b57d",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        128
+      ],
+      "id": "622e023a-4180-4b71-a856-e4210753bf7f",
+      "name": "Limit"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.n8nlabz.com.br",
+            "user-agent": "axios/1.8.3",
+            "content-length": "86",
+            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
+            "accept-encoding": "gzip, compress, deflate, br",
+            "content-type": "application/json",
+            "x-forwarded-for": "172.18.0.1",
+            "x-forwarded-host": "webhook.n8nlabz.com.br",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "3271e4ed253d",
+            "x-real-ip": "172.18.0.1"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "listing_id_do_imovel": "80",
+            "telefone_cliente": "5519994419319",
+            "instancia": "devlabz"
+          },
+          "webhookUrl": "https://webhook.n8nlabz.com.br/webhook/envia_imagem_imovel",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar imagem": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar imagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a row": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "eda5ace7-fa95-4692-95ba-c0b5116429ee",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "af2c2dce58b7b891043a58fa084cb85b78cc3ee626cfa19de4b473f0aab51bb8"
+  },
+  "id": "NacO5jxiwKS6Ldob",
+  "tags": []
+}

@@ -1,0 +1,1729 @@
+{
+  "name": "Agent Corretor #ImobiPro",
+  "nodes": [
+    {
+      "parameters": {
+        "queue": "agent-corretor",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rabbitmqTrigger",
+      "typeVersion": 1,
+      "position": [
+        352,
+        272
+      ],
+      "id": "e8d1ff2f-f799-492d-8b4f-8c760dadccba",
+      "name": "RabbitMQ Trigger1",
+      "credentials": {
+        "rabbitmq": {
+          "id": "z1WHI6Y2yeHRCV18",
+          "name": "RabbitMQ account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Este código assume que o payload está no formato de array, como no seu exemplo\nconst result = [];\n\nfor (const item of items) {\n  // Fazendo o parse do content (transformar string em JSON)\n  const contentData = JSON.parse(item.json.content);\n\n  // Montando o novo objeto com as informações desejadas\n  result.push({\n    json: {\n      deliveryTag: item.json.fields.deliveryTag,\n      redelivered: item.json.fields.redelivered,\n      ...contentData // Espalha os campos do content direto no json final\n    }\n  });\n}\n\nreturn result;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        272
+      ],
+      "id": "afcf7714-8ade-40af-b65f-3d5255741e2d",
+      "name": "Normalizador"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "leads",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "phone",
+              "keyValue": "={{ $json.remoteJid }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        704,
+        272
+      ],
+      "id": "91cd6bbc-521e-4a5f-835c-f652597b79c7",
+      "name": "Get a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Normalizador').item.json.message }}",
+        "options": {
+          "systemMessage": "=# Corretor {{ $json.full_name }} - Imobiliária dos Nodes\n\n## 🧠 Identidade\n\nVocê é **{{ $json.full_name }}**, corretor(a) da Imobiliária dos Nodes. Sua linguagem é profissional, clara e objetiva, mas também humana e acolhedora. Use expressões brasileiras como: \"Perfeito!\", \"Excelente escolha!\", \"Vamos resolver isso juntos!\"\n\n**Nunca revele que você é uma IA.**\n\n---\n\n## 🧠 THINK TOOL (OBRIGATÓRIO)\n\nAntes de qualquer ação (**busca**, **agendamento**, **reagendamento**, **envio de imagem**, ou **qualquer resposta com dados**), você deve acionar a tool `Think`.\n\nA tool `Think` serve para:\n- Analisar o pedido do cliente\n- Verificar se há ambiguidade\n- Escolher a ferramenta correta (ex: SQL de busca, agenda, imagem etc.)\n- Confirmar o `listing_id` correto, se imóvel for mencionado\n\n\n🚨 **É obrigatório usar a tool `Think` antes de qualquer outra tool.**\n\n**Mesmo que a tarefa pareça simples, SEMPRE use a tool `Think` antes de agir para verificar se está tomando a decisão correta.**\n\n---\n\n## 🗕️ Data Atual\n\nHoje: {{ $now.weekdayLong }}, {{ $now.format('dd/MM/yyyy') }}, {{ $now.hour.toString().padStart(2, '0') }}:{{ $now.minute.toString().padStart(2, '0') }}\n\n---\n\n## 🏡 Responsabilidades\n\n### 1. Busca de Imóveis\n\n* Sempre acionar a tool `Think` antes de qualquer busca\n* Após pensar, use uma tool SQL de busca adequada\n* Extraia os critérios mencionados (bairro, tipo, quartos, preço, etc.)\n* Se o cliente não der critérios, pergunte com educação\n* **NUNCA mencione um imóvel sem ter o `listing_id` real confirmado pela tool SQL**\n\n### 2. Sistema de Agendamento\n\n#### Novo Agendamento\n\n```\nCliente solicita visita → usar tool `Think`\n→ Verificar se é fim de semana:\n  - Se sim: \"Não realizamos visitas aos fins de semana. Posso verificar para segunda a sexta.\"\n  - Se não: usar tool `agenda` com função \"buscar\" → mostrar horários (2 manhã + 2 tarde)\n→ Cliente escolhe\n→ Coletar nome + email (se ainda não tiver)\n→ Agendar com `listing_id` confirmado\n```\n\n#### Reagendamento\n\n```\nCliente menciona: reagendar, alterar, mudar ou trocar visita\n→ Acionar tool `Think` para entender contexto\n→ Se email e data estiverem no contexto, NÃO perguntar de novo\n→ Se cliente sugerir nova data/hora → enviar tentativa: 1 para tool `agenda`\n→ Se resposta com `response` → reenviar exatamente como está\n→ Se cliente insistir no mesmo horário → enviar com tentativa: 2\n```\n\n#### Cancelamento\n\n```\nCliente deseja cancelar\n→ Validar com email\n→ Cancelar via tool `agenda`\n→ Perguntar: \"Quer que eu entre em contato futuramente com novas opções?\"\n```\n\n---\n\n## 🛠️ TOOLS - Regras Críticas\n\n### Tool `Think`\n\n* Sempre acione antes de qualquer ação\n* Use para raciocinar, interpretar e decidir a próxima ferramenta\n* Use para confirmar `listing_id` sempre que imóvel for citado\n\n### Tool `busca_imovel`\n\n* Só usar após tool `Think`\n* Filtrar pelos critérios mencionados\n* Nunca apresentar imóvel indisponível\n\n### Tool `agenda`\n\n* **Funções**: buscar | agendar | reagendar | cancelar\n* Sempre usar `buscar` antes de mencionar horários\n* Parâmetros obrigatórios: `listing_id`, `data`, `nome`, `email`\n* Para reagendar/cancelar: usar `email`\n\n### Tool `envia_imagem_imovel`\n\nSempre que cliente solicitar imagens ou fotos de um imóvel:\n\n1. Acione a tool `Think` para interpretar o nome, rua ou referência mencionada\n2. `Think` deve SEMPRE acionar a tool SQL adequada para identificar o `listing_id`\n3. Após confirmar o `listing_id`, use a tool `envia_imagem_imovel` com:\n   - `id_do_imovel`: `listing_id` obtido pela busca na tool sql\n\n\n🚫 Nunca envie imagem sem acionar `Think` e confirmar com a tool de busca\n🚫 Nunca invente ou estime um `listing_id`\n\n📌 Exemplo:\n\n```\nCliente: “Me manda as fotos daquela casa da Rua das Palmeiras?”\n→ Tool `Think` interpreta e recomenda `buscar_por_bairro` com “Carandá Bosque”\n→ Tool SQL retorna imóvel com `listing_id: 189`\n→ Usa tool `envia_imagem_imovel` com esse ID\n```\n\n#### ⚠️ Tool `agenda` com `response`\n\nSe retornar `response`, envie ao cliente exatamente como veio:\n\n```json\n{\n  \"response\": \"Infelizmente não tenho esse horário disponível...\"\n}\n```\n\n👉 NÃO reformule. Apenas envie ao cliente.\n\n---\n\n## 🔍 THINK - Lógicas Obrigatórias\n\n### THINK_AGENDAMENTO\n\n1. Cliente mencionou imóvel?\n2. Já confirmou via tool SQL?\n3. Tem `listing_id`?\n4. É dia útil?\n5. Já buscou horários?\n6. Cliente escolheu um?\n7. Tem nome e email?\n→ Use `Think` ANTES de tudo\n\n### THINK_REAGENDAMENTO\n\n1. Cliente quer mudar horário?\n2. Há `email` e `data` no contexto?\n3. Nova data foi sugerida?\n→ Envie com tentativa 1\n→ Se insistir no mesmo horário, tentativa 2\n→ Sempre acione tool `Think` antes\n\n### THINK_BUSCA_IMOVEL\n\n1. Cliente mencionou imóvel, bairro ou rua?\n2. Priorize sempre a busca através do bairro\n3. Se a tool não retornar resultado, tente utilizar outra tool até encontrar o listing_id\n3. Execute a busca e obtenha `listing_id`\n4. Nunca mencione imóvel sem esse ID\n\n### THINK_ENVIO_IMAGEM\n\n1. Cliente mencionou “fotos”, “imagem” ou “me manda foto do imóvel”?\n2. Use `Think` para interpretar qual imóvel está sendo referido\n3. Faça uma nova busca SQL com base na interpretação do `Think`\n4. Só depois envie imagem com o `listing_id` confirmado\n\n---\n\n## 🧭 Tools de Busca (mapa)\n\n| Critério                         | Tool usada             |\n|----------------------------------|------------------------|\n| Bairro                           | `buscar_por_bairro`    |\n| Apartamento                      | `buscar_apartamentos`  |\n| Casa / sobrado / condomínio      | `buscar_casas`         |\n| Com suíte                        | `buscar_com_suite`     |\n| Comercial                        | `buscar_comerciais`    |\n| Terreno                          | `buscar_terrenos`      |\n| Novos (2020+)                    | `buscar_imoveis_novos` |\n| Faixa de preço                   | `buscar_por_preco`     |\n| Palavra-chave na descrição       | `buscar_palavra_chave` |\n| Feature (piscina, gourmet etc)   | `buscar_por_features`  |\n| Região por CEP                   | `buscar_por_cep`       |\n| Busca combinada                  | `busca_avancada`       |\n\n---\n\n## 📦 Exemplo de Fluxo Correto\n\n```\nCliente: “Quero agendar pra casa da Rua Marli 1319”\n→ Acione tool `Think` para decidir qual busca usar\n→ Resultado: usar `buscar_por_bairro` com “Vila Nasser”\n→ Tool retorna imóvel com `listing_id`: 156\n→ Use tool `agenda` com esse `id_do_imovel`\n```\n\n---\n\n## 📋 Dados do Cliente Atual\n\n* Nome: {{ $('Get a row').item.json.name }}\n* Interesse: {{ $('Get a row').item.json.interest }}\n* Agendamento Atual: {{ $('Get a row').item.json.message }}\n* Email: {{ $json.email }}\n\n---\n\n## 🧼 Qualificação Rápida (se necessário)\n\n**Compra:**\n- Orçamento\n- Casa ou apê?\n- Região?\n- Quartos?\n- Prazo?\n\n**Aluguel:**\n- Valor mensal\n- Bairro\n- Pet, mobiliado, garagem?\n- Garantia?\n\n---\n\n## 💬 Pós-agendamento\n\nSe o cliente disser \"tudo certo\", \"confirmado\", \"fechado\":\n\n> “Legal! Qualquer coisa é só me chamar por aqui 😊 Se quiser ver outras opções ou tiver dúvidas, é só avisar.”\n\n→ Não repita agendamento\n→ Não reinicie atendimento\n\n---\n\n## ❌ Restrições\n\n* Nunca inventar dados ou horários\n* Nunca agendar aos fins de semana\n* Sempre acionar `Think` antes de qualquer ação\n* Nunca usar tool sem pensar antes\n* Nunca alterar `response` da agenda\n* Nunca usar `listing_id` não confirmado\n* Nunca enviar imagem sem passar por `Think` e tool de busca\n\n---\n\n**Seu foco:** gerar confiança, mostrar domínio do processo, resolver com agilidade e respeitar as regras do sistema."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        272
+      ],
+      "id": "91d7cbef-ff9c-41ed-9673-57813c6c5cf0",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-nano",
+          "mode": "list",
+          "cachedResultName": "gpt-5-nano"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        832,
+        912
+      ],
+      "id": "bb6c3f67-935d-4c35-8397-4256802a2c66",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "rQFPB3DN2Bf0NfRw",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Get a row').item.json.sessionid }}",
+        "tableName": "imobipro_messages",
+        "contextWindowLength": 50
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        256,
+        -192
+      ],
+      "id": "b309a95e-54ec-478a-9dc1-48758d82f8b0",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "zdfMPtoog6LpGdSI",
+          "name": "Teste Imobi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Ferramenta para gerenciar agendamentos da Imobiliária dos Nodes. Permite buscar disponibilidade, agendar, reagendar ou cancelar visitas.\n\nQUANDO USAR: Qualquer situação relacionada a agendamento ou quando cliente informar data/horário.\n\nREGRAS DE FUNCIONAMENTO:\n- Segunda a Sexta: 08:00 às 18:00\n- NÃO funcionamos sábados/domingos\n- Formato obrigatório: ISO8601 (YYYY-MM-DDTHH:MM:SS)\n\nPARÂMETROS:\n- acao: \"buscar\", \"agendar\", \"reagendar\", \"cancelar\"\n- data: Data/horário ISO8601\n- ação: \"agendar\": pedir e-mail do cliente\n\nVALIDAÇÃO OBRIGATÓRIA:\n1. Formato ISO8601 correto?\n\nSe validação falhar, explique ao cliente e ofereça alternativas válidas.\n\nApós o cliente confirmar sobre a escolha da data e horario pra agendamento, solicitar o e-mail ",
+        "method": "POST",
+        "url": "https://webhook.n8nlabz.com.br/webhook/agenda1",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "data_e_hora",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', `### Busca de disponibilidade (sem horário definido)\n\nSe a pergunta for genérica sobre um dia, como:\n\n\"Tem horário para amanhã?\"\n\nA resposta deve conter apenas a data do dia solicitado:\n\n\\`\\`\\`json\n{\n  \"date_e_hora\": \"2025-07-13\"\n}\n\n### Busca com horário definido:\n\nSe a pergunta for mais específica, com data e hora, como:\n\n\"Tem horário amanhã às 17h?\"\n\nA resposta deve conter a data e hora do dia solicitado:\n\n\\`\\`\\`json\n{\n  \"date_e_hora\": \"2025-07-13\"\n}\n\nse o dia da busca for sábado ou domingo, a imobiliaria não trabalha`, 'string') }}"
+            },
+            {
+              "name": "funcao",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters1_Value', `busca, agendamento, reagendamento ou cancelamento`, 'string') }}"
+            },
+            {
+              "name": "nome_cliente",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters2_Value', `nome do cliente`, 'string') }}"
+            },
+            {
+              "name": "email_cliente",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters3_Value', `email fornecido pelo cliente para agendar a visita`, 'string') }}"
+            },
+            {
+              "name": "imovel",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters4_Value', `código do imóvel informado pela pessoa`, 'string') }}"
+            },
+            {
+              "name": "sessionId",
+              "value": "={{ $json.sessionid }}"
+            }
+          ]
+        },
+        "options": {},
+        "optimizeResponse": true
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        112,
+        -192
+      ],
+      "id": "bbfa21c7-2248-4785-acc4-b6cece4dee4e",
+      "name": "agenda"
+    },
+    {
+      "parameters": {
+        "description": "Ferramenta obrigatória para análise e raciocínio antes de usar qualquer outra ferramenta. Deve ser usada para compreender o contexto, analisar requests ambíguos e definir estratégias adequadas de resposta."
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1,
+      "position": [
+        1104,
+        912
+      ],
+      "id": "6311581c-54cd-4213-9d9a-78f8ed2635c1",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Get a row').item.json.id }}",
+        "tableName": "imobipro_messages",
+        "contextWindowLength": 20
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        960,
+        912
+      ],
+      "id": "cd1e33d3-b15f-4f87-a36b-1358cf2b2604",
+      "name": "Postgres Chat Memory1",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "1cODhYDOJOOeuFIS",
+          "mode": "list",
+          "cachedResultName": "Responde Texto/Audio #ImobiPro"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "mensagem": "={{ $json.output }}",
+            "destinatario": "={{ $('Normalizador').item.json.remoteJid }}",
+            "instancia": "={{ $('Normalizador').item.json.instancia }}",
+            "sessionId": "={{ $('Get a row').item.json.sessionid }}",
+            "input_agent": "={{ $('Normalizador').item.json.message }}",
+            "output_agent": "={{ $json.output }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "mensagem",
+              "displayName": "mensagem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "instancia",
+              "displayName": "instancia",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "imagem",
+              "displayName": "imagem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": true
+            },
+            {
+              "id": "sessionId",
+              "displayName": "sessionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "input_agent",
+              "displayName": "input_agent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "output_agent",
+              "displayName": "output_agent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1920,
+        144
+      ],
+      "id": "0943a5d4-deeb-49e8-95c7-12f7aaf54c4f",
+      "name": "Execute Workflow"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        608,
+        -208
+      ],
+      "id": "b04fb6f6-9f87-413a-bcef-46f1b88ac0ea",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "imobipro_messages",
+          "mode": "list",
+          "cachedResultName": "imobipro_messages"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $json.sessionId }}",
+            "message": "={{ $json.mensagem }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1568,
+        -176
+      ],
+      "id": "e68b0a94-1a3b-4106-8197-96589c122e2e",
+      "name": "Insert rows in a table1",
+      "credentials": {
+        "postgres": {
+          "id": "zdfMPtoog6LpGdSI",
+          "name": "Teste Imobi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1344,
+        -208
+      ],
+      "id": "e9c295da-506b-4575-82d2-3e60d1ea295c",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = items[0].json;\nconst sessionId = item.sessionId;\n\n// Array com todas as mensagens da conversa do Fernando\nconst mensagens = [\n  item.mensagem1, item.mensagem2, item.mensagem3, item.mensagem4,\n  item.mensagem5, item.mensagem6, item.mensagem7, item.mensagem8,\n  item.mensagem9, item.mensagem10, item.mensagem11, item.mensagem12,\n  item.mensagem13, item.mensagem14, item.mensagem15, item.mensagem16\n];\n\n// Criar um item para cada mensagem\nconst resultado = [];\nmensagens.forEach((mensagem) => {\n  if (mensagem) { // Só adiciona se a mensagem existir\n    resultado.push({\n      json: {\n        mensagem: mensagem,\n        sessionId: sessionId\n      }\n    });\n  }\n});\n\nreturn resultado;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        -208
+      ],
+      "id": "b1722506-ad30-435f-86ca-61c16efc9892",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f87f5d9b-30b5-4ee9-bb51-9f9c970ddec2",
+              "name": "sessionId",
+              "value": "45b61d39-3803-49ce-8928-a5cb505cbdbd",
+              "type": "string"
+            },
+            {
+              "id": "816b2c30-161d-44bb-994b-f4eaa3b126a6",
+              "name": "mensagem1",
+              "value": "{\"type\": \"human\", \"content\": \"Olá! Tenho interesse no apartamento, R$ 818.922 - Jardim Veraneio,  que encontrei no VivaReal: https://www.vivareal.com.br/imovel/apartamento-3-quartos-jardim-veraneio-bairros-campo-grande-com-garagem-75m2-venda-RS818922-id-2784399536/. Código da oferta: 15. Código do anúncio no VivaReal: 2784399536\", \"additional_kwargs\": {}, \"response_metadata\": {}}",
+              "type": "string"
+            },
+            {
+              "id": "623f6630-3d59-4d2f-a44b-ca3d79c2fff0",
+              "name": "mensagem2",
+              "value": "{\"type\": \"ai\", \"content\": \"Olá, seja bem vindo(a) à Imobiliária Nodes, sou a CintIA e vou te ajudar! 😊\\n\\nRecebemos o seu interesse na compra do apartamento no Jardim Veraneio no valor de R$818.922,00.\\n\\nVou te enviar algumas imagens do imóvel caso você precise consultar, tudo bem?\", \"tool_calls\": [], \"additional_kwargs\": {}, \"response_metadata\": {}, \"invalid_tool_calls\": []}",
+              "type": "string"
+            },
+            {
+              "id": "d11e43c6-b84b-4151-ac14-81f86cac97d4",
+              "name": "mensagem3",
+              "value": "{\"type\": \"ai\", \"content\": \"*AlicIA*: \\n\\nOlá, sou a AlicIA aqui da Imobiliaria Nodes.\\n\\nRecebi o seu interesse em nosso imóvel, qual é o seu nome?\", \"tool_calls\": [], \"additional_kwargs\": {}, \"response_metadata\": {}, \"invalid_tool_calls\": []}",
+              "type": "string"
+            },
+            {
+              "id": "0459f632-0521-4a1f-81d8-be1e1a2bcd69",
+              "name": "mensagem4",
+              "value": "{\"type\": \"human\", \"content\": \"fernando\", \"additional_kwargs\": {}, \"response_metadata\": {}}",
+              "type": "string"
+            },
+            {
+              "id": "msg5",
+              "name": "mensagem5",
+              "value": "{\"type\": \"ai\", \"content\": \"Fernando, encontrei o apartamento que você mencionou no Jardim Veraneio, no empreendimento Arbo, na Avenida Santa Luzia. Ele tem 3 quartos, 2 banheiros, 1 suíte, garagem e área de 75m², com preço de R$ 818.922,00.\\n\\nQuer que eu envie imagens deste apartamento para você dar uma olhada?\", \"tool_calls\": [], \"additional_kwargs\": {}, \"response_metadata\": {}, \"invalid_tool_calls\": []}",
+              "type": "string"
+            },
+            {
+              "id": "msg6",
+              "name": "mensagem6",
+              "value": "{\"type\": \"human\", \"content\": \"teria alguma outra opção no centro?\", \"additional_kwargs\": {}, \"response_metadata\": {}}",
+              "type": "string"
+            },
+            {
+              "id": "msg7",
+              "name": "mensagem7",
+              "value": "{\"type\": \"ai\", \"content\": \"Fernando, encontrei algumas opções de imóveis no Centro para você:\\n\\n1. Apartamento no Jooy High Line, Rua Castro Alves, com 3 quartos, 1 suíte, 2 banheiros, 1 garagem, 59m², por R$ 641.734.\\n2. Apartamento no Jooy High Line, Rua Castro Alves, com 2 quartos, 1 suíte, 2 banheiros, 1 garagem, 66m², por R$ 829.852.\\n3. Apartamento no Jooy High Line, Rua Castro Alves, com 3 quartos, 1 suíte, 3 banheiros, 2 garagens, 77m², por R$ 840.888.\\n4. Apartamento na Rua das Garças, com 4 quartos, 4 suítes, 5 banheiros, 2 garagens, 151m², por R$ 890.000.\\n5. Apartamento na Rua 15 de Novembro, com 3 quartos, 3 suítes, 5 banheiros, 2 garagens, 267m², por R$ 1.100.000.\\n\\nQuer que eu envie imagens de alguma dessas opções para você dar uma olhada? Ou tem alguma preferência?\", \"tool_calls\": [], \"additional_kwargs\": {}, \"response_metadata\": {}, \"invalid_tool_calls\": []}",
+              "type": "string"
+            },
+            {
+              "id": "msg8",
+              "name": "mensagem8",
+              "value": "{\"type\": \"human\", \"content\": \"gostei desse apartamento na rua 15 de novembro, posso ver as imagens dele?\", \"additional_kwargs\": {}, \"response_metadata\": {}}",
+              "type": "string"
+            },
+            {
+              "id": "msg9",
+              "name": "mensagem9",
+              "value": "{\"type\": \"ai\", \"content\": \"Fernando, só para confirmar: o apartamento que você quer ver as imagens fica na Rua 15 de Novembro, número 1415, no Centro, com 3 quartos, 3 suítes, 5 banheiros e 2 vagas? Se sim, já vou preparar as imagens para você. Pode confirmar?\", \"tool_calls\": [], \"additional_kwargs\": {}, \"response_metadata\": {}, \"invalid_tool_calls\": []}",
+              "type": "string"
+            },
+            {
+              "id": "msg10",
+              "name": "mensagem10",
+              "value": "{\"type\": \"human\", \"content\": \"tenta de novo\", \"additional_kwargs\": {}, \"response_metadata\": {}}",
+              "type": "string"
+            },
+            {
+              "id": "msg11",
+              "name": "mensagem11",
+              "value": "{\"type\": \"ai\", \"content\": \"Fernando, acabei de te enviar as imagens do apartamento na Rua 15 de Novembro, número 1415, no Centro, com 3 quartos, 3 suítes, 5 banheiros e 2 vagas. Dá uma olhada e me diga o que achou!\", \"tool_calls\": [], \"additional_kwargs\": {}, \"response_metadata\": {}, \"invalid_tool_calls\": []}",
+              "type": "string"
+            },
+            {
+              "id": "msg12",
+              "name": "mensagem12",
+              "value": "{\"type\": \"human\", \"content\": \"consigo agendar uma visita na segunda feira as 10h?\", \"additional_kwargs\": {}, \"response_metadata\": {}}",
+              "type": "string"
+            },
+            {
+              "id": "msg13",
+              "name": "mensagem13",
+              "value": "{\"type\": \"ai\", \"content\": \"Fernando, para segunda-feira às 10h no apartamento da Rua 15 de Novembro, número 1415, Centro, o horário está disponível. Posso confirmar esse agendamento para você?\", \"tool_calls\": [], \"additional_kwargs\": {}, \"response_metadata\": {}, \"invalid_tool_calls\": []}",
+              "type": "string"
+            },
+            {
+              "id": "msg14",
+              "name": "mensagem14",
+              "value": "{\"type\": \"human\", \"content\": \"pode meu nome é fernando riolo e meu email é fernando.riolo01@gmail.com\", \"additional_kwargs\": {}, \"response_metadata\": {}}",
+              "type": "string"
+            },
+            {
+              "id": "msg15",
+              "name": "mensagem15",
+              "value": "{\"type\": \"ai\", \"content\": \"Ahh perfeito, Fernando! Agendei sua visita para segunda-feira, dia 4 de agosto de 2025, às 10h, no apartamento da Rua 15 de Novembro, número 1415, Centro. O corretor Arthur vai entrar em contato com você em instantes. Qualquer coisa, estou por aqui!\", \"tool_calls\": [], \"additional_kwargs\": {}, \"response_metadata\": {}, \"invalid_tool_calls\": []}",
+              "type": "string"
+            },
+            {
+              "id": "msg16",
+              "name": "mensagem16",
+              "value": "{\"type\": \"ai\", \"content\": \"Olá fernando, tudo bem?  Sou o Arthur e vou dar continuidade no seu atendimento para visita.   Apenas para confirmar, tudo certo para a visita 29/07/2025 09h?\", \"additional_kwargs\": {}, \"response_metadata\": {}}",
+              "type": "string"
+            },
+            {
+              "id": "msg17",
+              "name": "mensagem17",
+              "value": "{\"type\": \"human\", \"content\": \"Excelente, Fernando! Qualquer dúvida ou se precisar de algo mais, é só chamar. Vamos resolver tudo para você! Tenha um ótimo dia!\", \"tool_calls\": [], \"additional_kwargs\": {}, \"response_metadata\": {}, \"invalid_tool_calls\": []}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1008,
+        -208
+      ],
+      "id": "5d1e7f3a-00ba-4043-bc57-5cd1cb3a3923",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE from imobipro_messages",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        848,
+        -208
+      ],
+      "id": "f9fc06fb-9512-426b-ba0f-aae6a7d45485",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "zdfMPtoog6LpGdSI",
+          "name": "Teste Imobi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca imóveis em um bairro específico. A busca é case-insensitive e aceita nomes parciais.",
+        "operation": "executeQuery",
+        "query": "SELECT \n  id, listing_id, tipo_imovel, bairro, endereco, numero, preco, tamanho_m2, \n  quartos, banheiros, suite, garagem, \n  SUBSTRING(descricao, 1, 200) AS descricao_resumida \nFROM public.imoveisvivareal4 \nWHERE LOWER(bairro) LIKE LOWER('%' || '{{ $fromAI(\"nome_bairro\") }}' || '%') \nORDER BY preco ASC \nLIMIT 20\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        1920,
+        1104
+      ],
+      "id": "56ccb4c0-09fc-4c43-b7e8-d22c4cdcdeeb",
+      "name": "buscar_por_bairro",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca especificamente por apartamentos disponíveis. Retorna informações detalhadas incluindo número de quartos, suítes, vagas de garagem e localização.",
+        "operation": "executeQuery",
+        "query": "SELECT id, listing_id, bairro, endereco, numero, complemento, preco, tamanho_m2, quartos, banheiros, suite, garagem, andar, ano_construcao, SUBSTRING(descricao, 1, 200) as descricao_resumida FROM public.imoveisvivareal4 WHERE tipo_imovel = 'Apartment' ORDER BY preco ASC LIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        2112,
+        1104
+      ],
+      "id": "3598193a-387f-447f-a588-5bf678fede69",
+      "name": "buscar_apartamentos",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca por casas, sobrados e condomínios residenciais. Ideal para quem procura imóveis térreos ou com mais espaço.",
+        "operation": "executeQuery",
+        "query": "SELECT id, listing_id, tipo_imovel, bairro, endereco, numero, preco, tamanho_m2, quartos, banheiros, suite, garagem, ano_construcao, SUBSTRING(descricao, 1, 200) as descricao_resumida FROM public.imoveisvivareal4 WHERE tipo_imovel IN ('Home', 'Sobrado', 'Condo') ORDER BY preco ASC LIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        2320,
+        1104
+      ],
+      "id": "5cd556f0-4094-4cf9-8433-68c7d04a1db4",
+      "name": "buscar_casas",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca imóveis com número específico de quartos ou mais.",
+        "operation": "executeQuery",
+        "query": "SELECT id, listing_id, tipo_imovel, bairro, endereco, preco, tamanho_m2, quartos, banheiros, suite, garagem, SUBSTRING(descricao, 1, 200) as descricao_resumida FROM public.imoveisvivareal4 WHERE quartos >= {{ $fromAI('numero_quartos', 'número mínimo de quartos que o cliente deseja') }} ORDER BY quartos ASC, preco ASC LIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        2496,
+        1104
+      ],
+      "id": "cc8d2c11-65c4-486f-ba95-10ce7e27208a",
+      "name": "buscar_por_quartos",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca imóveis que possuem pelo menos uma suíte. Ideal para quem valoriza privacidade e conforto.",
+        "operation": "executeQuery",
+        "query": "SELECT id, listing_id, tipo_imovel, bairro, endereco, preco, tamanho_m2, quartos, suite, banheiros, garagem, SUBSTRING(descricao, 1, 200) as descricao_resumida FROM public.imoveisvivareal4 WHERE suite > 0 ORDER BY suite DESC, preco ASC LIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        2704,
+        1104
+      ],
+      "id": "a6a186ff-3f0f-4460-8e03-9c625f0b7fd1",
+      "name": "buscar_com_suite",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca imóveis comerciais como lojas, galpões, prédios comerciais e industriais. Retorna informações sobre localização, tamanho e preço.",
+        "operation": "executeQuery",
+        "query": "SELECT id, listing_id, tipo_imovel, bairro, endereco, numero, preco, tamanho_m2, banheiros, garagem, ano_construcao, SUBSTRING(descricao, 1, 200) as descricao_resumida FROM public.imoveisvivareal4 WHERE tipo_categoria = 'Commercial' ORDER BY preco ASC LIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        1616,
+        928
+      ],
+      "id": "63f7c308-82d4-4fcf-95eb-598b7cd44a97",
+      "name": "buscar_comerciais",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca terrenos disponíveis para venda. Mostra área total, localização e preço. Ideal para quem quer construir.",
+        "operation": "executeQuery",
+        "query": "SELECT id, listing_id, bairro, endereco, numero, preco, tamanho_m2, cep, SUBSTRING(descricao, 1, 200) as descricao_resumida FROM public.imoveisvivareal4 WHERE tipo_imovel = 'Land Lot' ORDER BY preco ASC LIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        1824,
+        928
+      ],
+      "id": "2a85013c-669c-437c-9003-b1a8bcc80e06",
+      "name": "buscar_terrenos",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca imóveis novos ou recém-construídos (a partir de 2020). Ideal para quem procura imóveis modernos com garantia de construção.",
+        "operation": "executeQuery",
+        "query": "SELECT id, listing_id, tipo_imovel, bairro, endereco, preco, tamanho_m2, quartos, banheiros, suite, garagem, ano_construcao, SUBSTRING(descricao, 1, 200) as descricao_resumida FROM public.imoveisvivareal4 WHERE ano_construcao >= 2020 ORDER BY ano_construcao DESC, preco ASC LIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        2016,
+        928
+      ],
+      "id": "44076b4f-d5b9-4379-8c33-da444b329525",
+      "name": "buscar_imoveis_novos",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Retorna uma análise estatística dos preços por bairro, incluindo quantidade de imóveis, preço médio, mínimo e máximo. Útil para comparar regiões.",
+        "operation": "executeQuery",
+        "query": "SELECT bairro, COUNT(*) as total_imoveis, ROUND(AVG(preco), 2) as preco_medio, MIN(preco) as preco_minimo, MAX(preco) as preco_maximo FROM public.imoveisvivareal4 GROUP BY bairro ORDER BY preco_medio DESC",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        2224,
+        928
+      ],
+      "id": "1255dd98-bcd5-4e01-87ee-14c8dbd3560c",
+      "name": "analise_preco_bairro",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca avançada com múltiplos filtros para uma busca precisa de imóveis residenciais.",
+        "operation": "executeQuery",
+        "query": "SELECT id, listing_id, tipo_imovel, bairro, endereco, preco, tamanho_m2, quartos, banheiros, suite, garagem, SUBSTRING(descricao, 1, 200) as descricao_resumida FROM public.imoveisvivareal4 WHERE tipo_categoria = 'Residential' AND preco BETWEEN {{ $fromAI('preco_min', 'preço mínimo desejado') }} AND {{ $fromAI('preco_max', 'preço máximo desejado') }} AND quartos >= {{ $fromAI('quartos_min', 'número mínimo de quartos') }} AND tamanho_m2::numeric >= {{ $fromAI('tamanho_min', 'tamanho mínimo em metros quadrados') }} ORDER BY preco ASC LIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        2416,
+        928
+      ],
+      "id": "d8f46063-0bfe-4fc8-8175-6a6d4733b918",
+      "name": "busca_avancada",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca imóveis que contenham uma palavra-chave específica na descrição, como 'piscina', 'churrasqueira', 'reformado', etc.",
+        "operation": "executeQuery",
+        "query": "SELECT id, listing_id, tipo_imovel, bairro, endereco, preco, tamanho_m2, quartos, SUBSTRING(descricao, 1, 300) as descricao_resumida FROM public.imoveisvivareal4 WHERE LOWER(descricao) LIKE LOWER('%' || {{ $fromAI('palavra_chave', 'palavra ou termo que deve estar na descrição do imóvel') }} || '%') ORDER BY preco ASC LIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        2624,
+        928
+      ],
+      "id": "0c8944ea-5eac-4a61-9bf6-281610d394c1",
+      "name": "buscar_palavra_chave",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Lista os imóveis com melhor custo-benefício baseado no preço por metro quadrado. Mostra o ranking dos mais vantajosos.",
+        "operation": "executeQuery",
+        "query": "SELECT id, listing_id, tipo_imovel, bairro, endereco, preco, tamanho_m2, quartos, ROUND(preco / NULLIF(tamanho_m2::numeric, 0), 2) as preco_por_m2, SUBSTRING(descricao, 1, 150) as descricao_resumida FROM public.imoveisvivareal4 WHERE tamanho_m2::numeric > 0 AND tipo_categoria = 'Residential' ORDER BY preco_por_m2 ASC LIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        2800,
+        928
+      ],
+      "id": "56b728b8-6d66-4963-8f9b-10cd74f754be",
+      "name": "custo_beneficio",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca imóveis em uma região específica pelo CEP. Use os primeiros dígitos do CEP para buscar toda a região.",
+        "operation": "executeQuery",
+        "query": "SELECT id, listing_id, tipo_imovel, bairro, endereco, numero, cep, preco, tamanho_m2, quartos, SUBSTRING(descricao, 1, 200) as descricao_resumida FROM public.imoveisvivareal4 WHERE cep LIKE {{ $fromAI('cep_prefixo', 'primeiros dígitos do CEP da região desejada') }} || '%' ORDER BY cep, preco ASC LIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        3008,
+        928
+      ],
+      "id": "15c4f26e-4800-4f30-bd07-0f3d625ee6b7",
+      "name": "buscar_por_cep",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Retorna estatísticas sobre a distribuição de imóveis por tipo (apartamentos, casas, terrenos, etc.) com quantidade e preço médio de cada categoria.",
+        "operation": "executeQuery",
+        "query": "SELECT tipo_imovel, tipo_categoria, COUNT(*) as quantidade, ROUND(AVG(preco), 2) as preco_medio, MIN(preco) as preco_minimo, MAX(preco) as preco_maximo FROM public.imoveisvivareal4 GROUP BY tipo_imovel, tipo_categoria ORDER BY quantidade DESC",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        3056,
+        1104
+      ],
+      "id": "f56235df-c408-46d6-a110-32d42c21c0eb",
+      "name": "estatisticas_tipo",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca imóveis dentro de uma faixa de preço específica. Retorna todos os imóveis ordenados por preço crescente.",
+        "operation": "executeQuery",
+        "query": "SELECT id, listing_id, tipo_categoria, tipo_imovel, bairro, endereco, numero, preco, tamanho_m2, quartos, banheiros, suite, garagem, ano_construcao, SUBSTRING(descricao, 1, 200) as descricao_resumida FROM public.imoveisvivareal4 WHERE preco BETWEEN {{ $fromAI('preco_minimo', 'preço mínimo que o cliente deseja buscar') }} and {{ $fromAI('preco_maximo', 'preço máximo que o cliente deseja buscar') }} ORDER BY preco ASC LIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        1744,
+        1104
+      ],
+      "id": "0deb9743-0108-40c8-8f8b-a90bd0bdee4f",
+      "name": "buscar_por_preco",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca imóveis por características/amenidades específicas como piscina, churrasqueira, academia, playground, etc. IMPORTANTE: As features estão em inglês no banco. Mapeamento: piscina=Pool, churrasqueira=BBQ, academia=Gym, playground=Playground, salão de festas=Party Room, elevador=Elevator, área gourmet=Gourmet Area, varanda/sacada=Balcony, garagem=Parking Garage, quarto de empregada=Maid's Quarters",
+        "operation": "executeQuery",
+        "query": "SELECT id, listing_id, tipo_imovel, bairro, endereco, preco, tamanho_m2, quartos, banheiros, suite, garagem, features, SUBSTRING(descricao, 1, 200) as descricao_resumida FROM public.imoveisvivareal4 WHERE features::text ILIKE '%{{ $fromAI('feature_ingles', 'feature em INGLÊS que deve estar presente. Use: Pool para piscina, BBQ para churrasqueira, Gym para academia, Playground para playground, Party Room para salão de festas, Elevator para elevador, Gourmet Area para área gourmet, Balcony para varanda/sacada') }}%' ORDER BY preco ASC LIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        2880,
+        1104
+      ],
+      "id": "637c06cd-9093-4442-a6d6-b738f5482bef",
+      "name": "buscar_por_features",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "=Ferramenta para gerenciar agendamentos da Imobiliária dos Nodes. Permite buscar disponibilidade, agendar, reagendar ou cancelar visitas.\n\nQUANDO USAR: Qualquer situação relacionada a agendamento ou quando cliente informar data/horário.\n\nREGRAS DE FUNCIONAMENTO:\n- Segunda a Sexta: 08:00 às 18:00\n- NÃO funcionamos sábados/domingos\n- Formato obrigatório: ISO8601 (YYYY-MM-DDTHH:MM:SS)\n\nPARÂMETROS:\n- acao: \"buscar\", \"agendar\", \"reagendar\", \"cancelar\"\n- data: Data/horário ISO8601\n- ação: \"agendar\": pedir e-mail do cliente\n\nVALIDAÇÃO OBRIGATÓRIA:\n1. Formato ISO8601 correto?\n\nSe validação falhar, explique ao cliente e ofereça alternativas válidas.\n\nApós o cliente confirmar sobre a escolha da data e horario pra agendamento, solicitar o e-mail \n\nPara agendar a visita, envie o listing_id do imovel selecionado informado pela tool de busca.\n\nCaso não tenha o listing_id do imóvel que o cliente solicitou, acione a tool respectiva para buscar o LISTING_ID\n\n\nRestrições: \n\nNunca pergunte ao cliente o listing_id do imóvel.\n",
+        "method": "POST",
+        "url": "https://webhook.n8nlabz.com.br/webhook/agenda1",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "data_e_hora",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', `### Busca de disponibilidade (sem horário definido)\n\nSe a pergunta for genérica sobre um dia, como:\n\n\"Tem horário para amanhã?\"\n\nA resposta deve conter apenas a data do dia solicitado:\n\n\\`\\`\\`json\n{\n  \"date_e_hora\": \"2025-07-13\"\n}\n\n### Busca com horário definido:\n\nSe a pergunta for mais específica, com data e hora, como:\n\n\"Tem horário amanhã às 17h?\"\n\nA resposta deve conter a data e hora do dia solicitado:\n\n\\`\\`\\`json\n{\n  \"date_e_hora\": \"2025-07-13\"\n}\n\nse o dia da busca for sábado ou domingo, a imobiliaria não trabalha`, 'string') }}"
+            },
+            {
+              "name": "funcao",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters1_Value', `busca, agendamento, reagendamento ou cancelamento`, 'string') }}"
+            },
+            {
+              "name": "nome_cliente",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters2_Value', `nome do cliente`, 'string') }}"
+            },
+            {
+              "name": "email_cliente",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters3_Value', `email fornecido pelo cliente para agendar a visita`, 'string') }}"
+            },
+            {
+              "name": "id_do_imovel",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters4_Value', `LISTING_ID do imóvel específico que o cliente quer visitar. Use EXATAMENTE o listing_id retornado pelas tools de busca de imóveis. Este campo é OBRIGATÓRIO para agendamentos.\n\nNunca Invente um listing_ID, sempre use do imóvel atual que foi informado pela tool de busca;`, 'string') }}"
+            },
+            {
+              "name": "sessionId",
+              "value": "={{ $('Webhook2').item.json.body.sessionId }}"
+            },
+            {
+              "name": "telefone",
+              "value": "={{ $('Webhook2').item.json.body.remoteJid }}"
+            }
+          ]
+        },
+        "options": {},
+        "optimizeResponse": true
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        -192
+      ],
+      "id": "af1acbe0-15cc-4ceb-a933-a50412adca95",
+      "name": "agenda1"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Use esta tool para enviar imagens de um imóvel específico. IMPORTANTE: Use o listing_id EXATO retornado pelas tools de busca (campo 'listing_id', não o campo 'id'). Exemplo: se a busca retornou listing_id='123', use exatamente '123'. NUNCA invente Listing_IDs.",
+        "method": "POST",
+        "url": "https://webhook.n8nlabz.com.br/webhook/envia_imagem_imovel",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "listing_id_do_imovel",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', `listing_id do imovel selecionado`, 'string') }}"
+            },
+            {
+              "name": "telefone_cliente",
+              "value": "={{ $('Normalizador').item.json.remoteJid }}"
+            },
+            {
+              "name": "instancia",
+              "value": "={{ $('Normalizador').item.json.instancia }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        912
+      ],
+      "id": "b4f98b2c-3dc0-4851-9fb2-817ac7725a5a",
+      "name": "envia_imagem_imovel1"
+    },
+    {
+      "parameters": {
+        "toolDescription": "=Ferramenta para gerenciar agendamentos da Imobiliária dos Nodes. Permite buscar disponibilidade, agendar, reagendar ou cancelar visitas.\n\nQUANDO USAR: Qualquer situação relacionada a agendamento ou quando cliente informar data/horário.\n\nREGRAS DE FUNCIONAMENTO:\n- Segunda a Sexta: 08:00 às 18:00\n- NÃO funcionamos sábados/domingos\n- Formato obrigatório: ISO8601 (YYYY-MM-DDTHH:MM:SS)\n\nPARÂMETROS:\n- acao: \"buscar\", \"agendar\", \"reagendar\", \"cancelar\"\n- data: Data/horário ISO8601\n- ação: \"agendar\": pedir e-mail do cliente\n\nVALIDAÇÃO OBRIGATÓRIA:\n1. Formato ISO8601 correto?\n\nSe validação falhar, explique ao cliente e ofereça alternativas válidas.\n\nApós o cliente confirmar sobre a escolha da data e horario pra agendamento, solicitar o e-mail \n\nPara agendar a visita, envie o listing_id do imovel selecionado informado pela tool de busca.\n\nCaso não tenha o listing_id do imóvel que o cliente solicitou, acione a tool respectiva para buscar o LISTING_ID\n\n\nRestrições: \n\nNunca pergunte ao cliente o listing_id do imóvel.\n",
+        "method": "POST",
+        "url": "https://webhook.n8nlabz.com.br/webhook/agenda_corretor",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "data_e_hora",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', `### Busca de disponibilidade (sem horário definido)\n\nSe a pergunta for genérica sobre um dia, como:\n\n\"Tem horário para amanhã?\"\n\nA resposta deve conter apenas a data do dia solicitado:\n\n\\`\\`\\`json\n{\n  \"date_e_hora\": \"2025-07-13\"\n}\n\n### Busca com horário definido:\n\nSe a pergunta for mais específica, com data e hora, como:\n\n\"Tem horário amanhã às 17h?\"\n\nA resposta deve conter a data e hora do dia solicitado:\n\n\\`\\`\\`json\n{\n  \"date_e_hora\": \"2025-07-13\"\n}\n\nse o dia da busca for sábado ou domingo, a imobiliaria não trabalha`, 'string') }}"
+            },
+            {
+              "name": "funcao",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters1_Value', `busca, agendamento, reagendamento ou cancelamento`, 'string') }}"
+            },
+            {
+              "name": "nome_cliente",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters2_Value', `nome do cliente`, 'string') }}"
+            },
+            {
+              "name": "email_cliente",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters3_Value', `email fornecido pelo cliente para agendar a visita`, 'string') }}"
+            },
+            {
+              "name": "id_do_imovel",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters4_Value', `LISTING_ID do imóvel específico que o cliente quer visitar. Use EXATAMENTE o listing_id retornado pelas tools de busca de imóveis. Este campo é OBRIGATÓRIO para agendamentos.\n\nNunca Invente um listing_ID, sempre use do imóvel atual que foi informado pela tool de busca;`, 'string') }}"
+            },
+            {
+              "name": "sessionId",
+              "value": "={{ $('Get a row').item.json.sessionid }}"
+            },
+            {
+              "name": "telefone",
+              "value": "={{ $('Get a row').item.json.telefone }}"
+            },
+            {
+              "name": "funcionario",
+              "value": "={{ $('Get a row').item.json.funcionario }}"
+            },
+            {
+              "name": "tentativa",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters8_Value', `tentativa de reagendamento: caso seja a primeira tentativa de reagendar, envie 1\ncaso for a segunda envie 2`, 'string') }}"
+            },
+            {
+              "name": "data_original",
+              "value": "={{ $('Get a row').item.json.data_agendamento }}"
+            }
+          ]
+        },
+        "options": {},
+        "optimizeResponse": true
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        1248,
+        912
+      ],
+      "id": "60cfe0f4-47fd-4e72-bbd1-85ef607c6e85",
+      "name": "agenda2"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "imobipro_messages",
+          "mode": "list",
+          "cachedResultName": "imobipro_messages"
+        },
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "message",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1920,
+        288
+      ],
+      "id": "d9c1dd34-bdb3-402c-8ffd-d474421940cc",
+      "name": "Select rows from a table",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node (JavaScript)\n\nfunction ensureString(v) {\n  if (v == null) return '';\n  return typeof v === 'string' ? v : JSON.stringify(v);\n}\n\n// Pega mensagem do Normalizador (primeiro item)\nconst normalizadorMsg = ensureString($('Normalizador').first().json?.message);\n\n// Pega saída do AI Agent (tenta manter o pareamento; se não houver, cai no first())\nconst aiItemOutput = $('AI Agent').item?.json?.output;\nconst aiFirstOutput = $('AI Agent').first().json?.output;\nconst aiOutput = ensureString(aiItemOutput ?? aiFirstOutput ?? '');\n\n// Retorna dois itens\nreturn [\n  {\n    json: {\n      type: \"human\",\n      content: normalizadorMsg,\n      additional_kwargs: {},\n      response_metadata: {}\n    }\n  },\n  {\n    json: {\n      type: \"ai\",\n      content: aiOutput,\n      tool_calls: [],\n      additional_kwargs: {},\n      response_metadata: {},\n      invalid_tool_calls: []\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        272
+      ],
+      "id": "2432da59-aa29-4c90-8e66-39a676cedce2",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1664,
+        272
+      ],
+      "id": "1684403c-1741-4bf7-bf45-ab288f68c77c",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "imobipro_messages",
+          "mode": "list",
+          "cachedResultName": "imobipro_messages"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.id }}",
+            "instancia": "={{ $('Normalizador').item.json.instancia }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "data",
+              "displayName": "data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "media",
+              "displayName": "media",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "instancia",
+              "displayName": "instancia",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2128,
+        288
+      ],
+      "id": "4ea85901-ba2a-4b3e-9a45-837836a78441",
+      "name": "Update rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "user_profiles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.id_corretor_responsavel }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        912,
+        272
+      ],
+      "id": "f89bc841-e284-45a3-91e0-1d60ef21b6f5",
+      "name": "Get a row1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "RabbitMQ Trigger1": [
+      {
+        "json": {
+          "fields": {
+            "consumerTag": "amq.ctag-FiYa2LOErJkm5vhv3IK3tA",
+            "deliveryTag": 3,
+            "redelivered": false,
+            "exchange": "",
+            "routingKey": "agent-corretor"
+          },
+          "properties": {
+            "headers": {}
+          },
+          "content": "{\"message\":\"ok, tudo certo\",\"remoteJid\":\"5519994419319@s.whatsapp.net\",\"instancia\":\"isis\"}"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "RabbitMQ Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Normalizador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a row": {
+      "main": [
+        [
+          {
+            "node": "Get a row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        []
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "agenda": {
+      "ai_tool": [
+        []
+      ]
+    },
+    "Normalizador": {
+      "main": [
+        [
+          {
+            "node": "Get a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Insert rows in a table1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "agenda1": {
+      "ai_tool": [
+        []
+      ]
+    },
+    "envia_imagem_imovel1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_comerciais": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_terrenos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_imoveis_novos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "analise_preco_bairro": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "busca_avancada": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_palavra_chave": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "custo_beneficio": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_por_cep": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_por_preco": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_por_bairro": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_apartamentos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_casas": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_por_quartos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_com_suite": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_por_features": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "estatisticas_tipo": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "agenda2": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select rows from a table": {
+      "main": [
+        [
+          {
+            "node": "Update rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Select rows from a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update rows in a table": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a row1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "yWj5pMAmwcRtNXFk"
+  },
+  "versionId": "49ff4336-511a-460a-8085-de583723a3d8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "af2c2dce58b7b891043a58fa084cb85b78cc3ee626cfa19de4b473f0aab51bb8"
+  },
+  "id": "Bn86e3axqal3V2Rs",
+  "tags": []
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { AppointmentCalendar } from "@/components/AppointmentCalendar";
 import { AddEventModal } from "@/components/AddEventModal";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { logAudit } from "@/lib/audit/logger";
 import { useClients } from "@/hooks/useClients";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useOptimizedAgenda } from '@/hooks/useOptimizedAgenda';
 
 interface AgendaEvent {
   id: number | string;
@@ -79,6 +80,30 @@ export function AgendaView() {
   const [corretores, setCorretores] = useState<{ id: string; full_name: string }[]>([]);
   const [loadingCorretores, setLoadingCorretores] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Range de datas baseado no mês atual (usado pelo hook otimizado)
+  const dateRange = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const start = new Date(year, month, 1, 0, 1, 0, 0);
+    const end = new Date(year, month + 1, 0, 23, 59, 59, 999);
+    return { start, end };
+  }, [currentMonth]);
+
+  const optimized = useOptimizedAgenda({
+    calendarIds: selectedAgenda === 'Todos' ? (corretores.map(c => c.id) || ['primary']) : [selectedAgenda],
+    dateRange,
+    cacheTtl: 300
+  });
+
+  // Sincronizar eventos retornados pelo hook otimizado com o estado local
+  useEffect(() => {
+    if (optimized?.events) {
+      setEvents(optimized.events as any);
+      setLoading(Boolean(optimized.loading));
+      setError(optimized.error || null);
+      setLastUpdate(new Date());
+    }
+  }, [optimized.events, optimized.loading, optimized.error]);
   
   // Buscar propriedades e clientes existentes
   const { properties } = useProperties();
@@ -672,7 +697,7 @@ export function AgendaView() {
           }
         }
         // Para gestor/admin ou corretor já com agenda definida: buscar eventos normalmente
-        await fetchAgendaEvents(currentMonth);
+        await optimized.refresh();
       } catch (e) {
         console.warn('⚠️ Falha ao processar carregamento da agenda:', e);
       }
@@ -685,7 +710,7 @@ export function AgendaView() {
       clearInterval(intervalRef.current);
     }
     intervalRef.current = setInterval(() => {
-      fetchAgendaEvents(currentMonth, true);
+      optimized.refresh();
     }, 3000);
     return () => {
       if (intervalRef.current) {
@@ -721,7 +746,7 @@ export function AgendaView() {
 
   // Atualização manual solicitada por filhos (ex.: após editar/deletar/criar)
   const refreshEvents = () => {
-    fetchAgendaEvents(currentMonth, true);
+    optimized.refresh();
   };
 
   const handleAddEvent = async (eventData: {
@@ -1216,7 +1241,7 @@ export function AgendaView() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => fetchAgendaEvents(currentMonth)}
+            onClick={() => optimized.refresh()}
             className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
           >
             🔄 Atualizar

@@ -1,0 +1,1360 @@
+{
+  "name": "Recepção #ImobiPro",
+  "nodes": [
+    {
+      "parameters": {
+        "text": "=Identifique nesse texto, qual é o portal de vendas, o listingID, tipo de busca, preço do imovel, titulo do imovel e código do portal {{ $('NovoLead').item.json.body.mensagem }}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "portal",
+              "description": "portal de vendas que chegou a mensagem, por exemplo VivaReal"
+            },
+            {
+              "name": "ListingID",
+              "description": "código da oferta do imovel que chegou na mensagem"
+            },
+            {
+              "name": "tipo_busca",
+              "description": "=se é compra ou venda\nse compra o valor do imóvel é acima de 100 mil\nse aluguel o o valor imovel é menor de 99 mil"
+            },
+            {
+              "name": "preço_imovel",
+              "description": "preço do imovel"
+            },
+            {
+              "name": "titulo_imovel",
+              "description": "titulo do imovel"
+            },
+            {
+              "name": "codigo_portal",
+              "description": "código do anuncio do portal (vivareal, zap imoveis, etc)"
+            }
+          ]
+        },
+        "options": {
+          "systemPromptTemplate": "You are an expert extraction algorithm.\nOnly extract relevant information from the text.\nIf you do not know the value of an attribute asked to extract, you may omit the attribute's value."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        -512,
+        16
+      ],
+      "id": "a2ed4673-8799-41d2-87a8-f0ce45809cf9",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -512,
+        176
+      ],
+      "id": "f565a937-22fc-4c07-a2f9-2e0534dc7410",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "rQFPB3DN2Bf0NfRw",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3184,
+        -96
+      ],
+      "id": "a7047003-981b-42d4-bb2b-9dea764370df",
+      "name": "Wait",
+      "webhookId": "e5c1e0da-9d6d-4915-81d1-302a9e5cf342",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "novo-lead",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1232,
+        -128
+      ],
+      "id": "b62ce1c7-1266-475e-a0a8-b8554d54515a",
+      "name": "NovoLead",
+      "webhookId": "8bd8d6bc-9bc7-4705-abc7-bb2085d2eb87",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "nAnn8yt1bqiIsrqP",
+          "name": "heygen"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $json.data.key.remoteJid }}_block",
+        "value": "true",
+        "keyType": "string",
+        "expire": true
+      },
+      "id": "0b938ee1-a749-450e-a63a-55b616598eca",
+      "name": "Parar Resposta Agent1",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        3024,
+        -96
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "redis": {
+          "id": "dA56R2Qx4MaS8Q4j",
+          "name": "Redis account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pega a mensagem recebida do item de entrada\nconst mensagem = $json.mensagem || \"\";\n\n// Pega a mensagem original\nconst mensagemOriginal = $input.first().json.data.message.conversation || $json.text;\n\n// Adiciona o texto interno à mensagem\nconst mensagemComTextoInterno = mensagemOriginal + \"\\n\\nInformações Internas: Imagens e Descrição enviadas com sucesso, apenas continuar o atendimento ao cliente a partir desse levando em consideração que as informações ja foram enviadas. Você acabou de receber o nome do cliente, trate-o bem!.\";\n\n// Monta o objeto no formato desejado\nconst resultado = {\n  type: \"ai\",\n  content: mensagemComTextoInterno,\n  tool_calls: [],\n  additional_kwargs: {},\n  response_metadata: {},\n  invalid_tool_calls: []\n};\n\n// Retorna como output\nreturn [{ json: resultado }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3472,
+        -96
+      ],
+      "id": "20d61e09-b35c-4c85-af89-16e485a224a7",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "imobipro_messages",
+          "mode": "list",
+          "cachedResultName": "imobipro_messages"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $('NovoLead').last().json.body.sessionId }}",
+            "message": "={{ $json }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3632,
+        -96
+      ],
+      "id": "ff963607-20be-4fb6-8451-657a1ced86ff",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $('NovoLead').item.json.body.instancia }}",
+        "remoteJid": "={{ $('NovoLead').item.json.body.remoteJid }}",
+        "messageText": "=*AlicIA*: \n\nOlá, sou a AlicIA aqui da Imobiliaria Nodes.\n\nRecebi o seu interesse em nosso imóvel, qual é o seu nome?",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        3328,
+        -96
+      ],
+      "id": "bce3adab-e2b8-4cb9-bef7-2895e3a447ca",
+      "name": "Enviar texto",
+      "credentials": {
+        "evolutionApi": {
+          "id": "zbqvM1wtXe4Ivrv2",
+          "name": "Devlabz"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "sdr",
+        "remoteJid": "={{ $('NovoLead').last().json.body.remoteJid }}",
+        "messageText": "={{ $json.output }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        624,
+        16
+      ],
+      "id": "970b70ff-5518-4726-b397-8b8f066173d9",
+      "name": "Enviar texto1",
+      "credentials": {
+        "evolutionApi": {
+          "id": "zbqvM1wtXe4Ivrv2",
+          "name": "Devlabz"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "leads",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('NovoLead').item.json.body.sessionId }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "source",
+              "fieldValue": "={{ $json.output.portal }}"
+            },
+            {
+              "fieldId": "interest",
+              "fieldValue": "={{ $json.output.tipo_busca }}"
+            },
+            {
+              "fieldId": "estimated_value",
+              "fieldValue": "={{ $json.output[\"preço_imovel\"].replace(\"R$\",\"\").replace(/\\./g,\"\").replace(\",\",\".\").trim() }}"
+            },
+            {
+              "fieldId": "imovel_interesse",
+              "fieldValue": "={{ $json.output.ListingID }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        16
+      ],
+      "id": "eb3483e2-fcc9-4e27-8c73-7ba73142d3a9",
+      "name": "Update a row",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('NovoLead').item.json.body.mensagem }}",
+        "options": {
+          "systemMessage": "=## Data e Horário Atual  \nHoje é: {{ $now.weekdayLong }}, {{ $now.format('dd/MM/yyyy') }}, {{ $now.hour.toString().padStart(2, '0') }}:{{ $now.minute.toString().padStart(2, '0') }}\n\n## Papel e Contexto\nVocê é a CintIA especializada em recepção de leads imobiliários da **Imobiliária Nodes**. Sua função é recepcionar clientes interessados em imóveis de forma calorosa, próxima e eficiente.\n\n## Instruções Principais\n\n### 1. Análise da Mensagem\nQuando receber uma mensagem de lead, extraia e identifique:\n- **Tipo de interesse** (se o valor do imóvel for maior que R$100.000,00 é compra, menor que isso é aluguel)\n- **Imóvel específico** (endereço, valor, características)\n\n### 2. Estrutura da Resposta\nSua resposta deve SEMPRE seguir este formato EXATO com quebras de linha:\n\n**Saudação com nome da empresa:**\n- \"Olá, seja bem vindo(a) à Imobiliária Nodes, sou a CintIA e vou te ajudar! 😊\"\n- [QUEBRA DE LINHA]\n\n**Confirmação do interesse:**\n- \"Recebemos o seu interesse na [tipo de negócio] [tipo de imóvel] no [bairro] no valor de R$[valor].\"\n- [QUEBRA DE LINHA]\n\n**Oferta de suporte:**\n- \"Vou te enviar algumas imagens do imóvel caso você precise consultar, tudo bem?\"\n\n**Tipo de negócio:**\n- Se valor > R$100.000,00 = \"compra\"\n- Se valor ≤ R$100.000,00 = \"locação\"\n\n### 3. Tom e Estilo\n- **Caloroso e próximo** (como se fosse um atendente real)\n- **Informal, mas respeitoso**\n- **Use emoji 😊 apenas na saudação**\n- **Linguagem direta e simples**\n- **Evite termos corporativos como \"consultor especializado\"**\n\n### 4. Regras Importantes\n- **SEMPRE mencionar \"Imobiliária Nodes\"** na saudação\n- **NÃO mencionar códigos de oferta ou anúncio**\n- **NÃO mencionar prazos específicos como \"5 minutos\"**\n- **NÃO usar \"consultor especializado\" - seja mais direto**\n- **OBRIGATÓRIO usar quebras de linha** entre cada bloco da resposta\n- **SEMPRE incluir o tipo de negócio** (compra/locação) antes do tipo de imóvel\n- **Focar na proximidade e disponibilidade para ajudar**\n\n### 5. Formato de Valores\n- Sempre usar formato brasileiro: R$000.000,00\n\n### 6. Exemplo de Resposta Ideal\n```\nOlá, seja bem vindo(a) à Imobiliária Nodes, sou a CintIA e vou te ajudar! 😊\n\nRecebemos o seu interesse na compra do apartamento/casa no [Bairro] no valor de R$[valor],00.\n\nVou te enviar algumas imagens do imóvel caso você precise consultar, tudo bem?\n```\n\n## Objetivo Final\nFazer com que o lead se sinta bem recebido pela Imobiliária Nodes, com um atendimento próximo e personalizado, criando confiança e interesse em continuar o processo."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        304,
+        16
+      ],
+      "id": "f738b85a-e238-413e-9ccd-54121934f757",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-nano",
+          "mode": "list",
+          "cachedResultName": "gpt-5-nano"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        288,
+        240
+      ],
+      "id": "413f1a3d-e827-49be-9c71-38b25437441d",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "rQFPB3DN2Bf0NfRw",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $('NovoLead').item.json.body.instancia }}",
+        "remoteJid": "={{ $('NovoLead').item.json.body.remoteJid }}",
+        "messageText": "=Agora a nossa especialista AlicIA vai entrar em contato com você para agendar a visita ao imóvel ou, se preferir, te mostrar outras opções incríveis que temos disponíveis! 💫\n\nFoi um prazer enorme te atender! 😄\n\nSe surgir qualquer dúvida ou precisar de algo, pode contar com a Alicia, ela vai te ajudar da melhor maneira possível! 💬❤️",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        2848,
+        -96
+      ],
+      "id": "92ad67b1-c663-4ba1-8915-9a75c619d99c",
+      "name": "Enviar texto2",
+      "credentials": {
+        "evolutionApi": {
+          "id": "zbqvM1wtXe4Ivrv2",
+          "name": "Devlabz"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Embaralha as imagens\nfunction shuffle(array) {\n  return array.sort(() => Math.random() - 0.5);\n}\n\nconst imagens = $('Get a row1').item.json.imagens;\nconst imagensAleatorias = shuffle(imagens).slice(0, 5);\n\n// Retorna cada imagem como um item separado\nreturn imagensAleatorias.map(url => ({\n  json: {\n    imagem: url\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        16
+      ],
+      "id": "02754347-6e7a-47a7-a266-9c2ef8ccc1a5",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        944,
+        16
+      ],
+      "id": "c24ee6cf-3b99-4b58-a4f8-ae558bac0daa",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "operation": "send-image",
+        "instanceName": "={{ $('NovoLead').item.json.body.instancia }}",
+        "remoteJid": "={{ $('NovoLead').item.json.body.remoteJid }}",
+        "media": "={{ $json.imagem }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        96
+      ],
+      "id": "d297a1c2-1344-4ac8-a8be-8fd10110075a",
+      "name": "Enviar imagem",
+      "credentials": {
+        "evolutionApi": {
+          "id": "zbqvM1wtXe4Ivrv2",
+          "name": "Devlabz"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Descrição do imóvel:  {{ $('Get a row1').item.json.descricao }}",
+        "options": {
+          "systemMessage": "=Instrução Principal\nVocê é um assistente especializado em extrair informações de descrições de imóveis. Analise o texto fornecido e organize as informações seguindo exatamente a estrutura abaixo:\n\nFormato de Resposta Obrigatório\n[Parágrafo descritivo direto sobre o empreendimento - sem título]\n\n📍 Onde fica? [Endereço completo com rua, bairro, cidade e estado]\n\n🏠 O que você vai encontrar no [Nome do Empreendimento]?\n\n[Liste apenas 5 características, tipos de unidades, áreas de lazer e comodidades mencionadas]\n\nRegras Importantes:\nExtraia APENAS informações que estão explicitamente mencionadas no texto\nOrganize as features se houver em lista com marcadores\nMantenha a linguagem clara e objetiva\nRemova tags HTML do texto original\nUse emojis para tornar a apresentação mais visual\nMantenha a resposta CONCISA - foque no essencial\nNÃO inclua informações de registro em cartório ou matrícula\nAgrupe itens similares para evitar repetição\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        1440,
+        0
+      ],
+      "id": "da4c326c-8a67-4b0e-bbfe-e13ac99f5dc1",
+      "name": "AI Agent",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-nano",
+          "mode": "list",
+          "cachedResultName": "gpt-5-nano"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1440,
+        176
+      ],
+      "id": "ab2fe9de-a812-4f5a-a115-7d4f025d9ece",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "rQFPB3DN2Bf0NfRw",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        0
+      ],
+      "id": "1483562a-d0db-4f4f-8361-7671b1b3016b",
+      "name": "Limit"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2672,
+        -96
+      ],
+      "id": "5ceb0d53-08e7-4da7-9d94-267c58925307",
+      "name": "Wait1",
+      "webhookId": "d053d430-43c4-48b6-89ea-0099ad66dd98"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "imoveisvivareal",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "listing_id",
+              "keyValue": "={{ $('Information Extractor').item.json.output.ListingID }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -16,
+        16
+      ],
+      "id": "083d0fa3-537b-4fdd-82fd-86f8c7046750",
+      "name": "Get a row1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "interesse_imoveis",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "telefone",
+              "fieldValue": "={{ $('NovoLead').item.json.body.remoteJid }}"
+            },
+            {
+              "fieldId": "quartos",
+              "fieldValue": "={{ $json.quartos }}"
+            },
+            {
+              "fieldId": "banheiro",
+              "fieldValue": "={{ $json.banheiros }}"
+            },
+            {
+              "fieldId": "bairro",
+              "fieldValue": "={{ $json.bairro }}"
+            },
+            {
+              "fieldId": "tamanho",
+              "fieldValue": "={{ $json.tamanho_m2 }}"
+            },
+            {
+              "fieldId": "suite",
+              "fieldValue": "={{ $json.suite }}"
+            },
+            {
+              "fieldId": "cidade",
+              "fieldValue": "={{ $json.cidade }}"
+            },
+            {
+              "fieldId": "preco",
+              "fieldValue": "={{ $json.preco }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        144,
+        16
+      ],
+      "id": "1ddf4c57-403a-4f30-bc91-e965a23c8219",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "jO6khXA0YlIUNtjR",
+          "name": "Teste ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('NovoLead').item.json.body.sessionId }}",
+        "tableName": "imobipro_messages",
+        "contextWindowLength": 0
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        448,
+        240
+      ],
+      "id": "bdfa4752-fe2b-4cd7-ba8c-7f35cfe4683d",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "sGmuGCzjJK37GEaR",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('NovoLead').item.json.body.mensagem }}",
+        "options": {
+          "systemMessage": "=# Prompt para Atendimento Único - CintIA da Imobiliária Nodes\n\n## Identidade\nVocê é **CintIA**, recepcionista simpática e eficiente da *Imobiliária Nodes*. Sua missão é acolher, entender rapidamente a necessidade do cliente e direcionar para o atendimento humano ou indicar o imóvel desejado.\n\n- Use emojis contextuais com moderação 😊\n- Destaque informações importantes com **negrito** usando `*`\n- Separe perguntas e blocos com **quebra de linha real** (pressionando ENTER), evite `\\n\\n` escrito literalmente\n- Responda sempre com tom natural, acolhedor, e objetivo\n\n---\n\n## Análise Inteligente (ANTES de responder)\n\nAnalise a mensagem do cliente e siga a lógica abaixo:\n\n### 🔹 CASO 1: Cliente mencionou um imóvel específico (nome ou código, ex: Arbo)\n**→ Faça apenas saudação e peça o nome**\n\nExemplo:\n🏡✨ Oi! Eu sou a *CintIA* da *Imobiliária Nodes*!\n\nFico feliz que tenha gostado do *Arbo* 😍\n\nPra te ajudar direitinho, *qual é o seu nome?*\n\n---\n\n### 🔹 CASO 2: Cliente mencionou **bairro ou região**, mas não o imóvel específico\n**→ Saudações + pergunte se é compra ou aluguel + tipo de imóvel + peça nome depois**\n\nExemplo:\n🏡✨ Oi! Eu sou a *CintIA* da *Imobiliária Nodes*!\n\nQue ótimo que você está interessado em imóveis no *Carandá Bosque*! 😊\n\nVocê está procurando *para comprar ou alugar*?\n\nTem preferência por *casa*, *apartamento* ou outro tipo de imóvel?\n\nE pra que eu possa continuar o atendimento com as melhores opções, *qual é o seu nome?*\n\n---\n\n### 🔹 CASO 3: Cliente não deu nenhuma informação (primeiro contato genérico)\n**→ Saudação completa + todas as perguntas em sequência**\n\nExemplo:\n🏡✨ Oi! Eu sou a *CintIA* da *Imobiliária Nodes*! Vai ser um prazer te ajudar a encontrar o imóvel ideal 😊\n\nPra começar, me conta: *qual é o seu nome?*\n\nVocê está procurando *comprar ou alugar** um imóvel?\n\n📍 Em qual *bairro ou região* você tem interesse?\n\n🏠 Que tipo de imóvel procura: **casa**, *apartamento*, *terreno* ou *comercial*?\n\n💰 E qual sua *faixa de orçamento* aproximada?\n\nCom essas informações eu já consigo separar as melhores opções pra você! ✨\n\n---\n\n## Diretrizes rápidas\n- NUNCA repita informações que o cliente já falou\n- Mantenha o texto leve e humano, sem parecer robô\n- Sempre peça o nome (em qualquer cenário)\n- Evite mais de uma pergunta por linha\n- Finalize sempre com **proximidade e utilidade**\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        -496,
+        -304
+      ],
+      "id": "d8d43819-fce0-44e5-9488-7ebfd2d0c98d",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -512,
+        -128
+      ],
+      "id": "28a6c30b-49b1-4b96-bfda-4b53bde58f68",
+      "name": "OpenAI Chat Model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "rQFPB3DN2Bf0NfRw",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $('NovoLead').item.json.body.instancia }}",
+        "remoteJid": "={{ $('NovoLead').item.json.body.remoteJid }}",
+        "messageText": "={{ $json.output }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        -304
+      ],
+      "id": "137dae9b-6b7b-4f47-a44a-5dddb61a2204",
+      "name": "Enviar texto4",
+      "credentials": {
+        "evolutionApi": {
+          "id": "zbqvM1wtXe4Ivrv2",
+          "name": "Devlabz"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n  const mensagem = item.json.body?.mensagem || \"\";\n  const contemLink = /(https?:\\/\\/[^\\s]+)/gi.test(mensagem);\n\n  return {\n    json: {\n      tipo_origem: contemLink ? \"portal\" : \"contato\"\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1008,
+        -128
+      ],
+      "id": "957d20fb-974a-449f-b21a-05d2fccd5597",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.tipo_origem }}",
+                    "rightValue": "contato",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "2fe509b5-7fe8-47cd-9363-738cc524d84c"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Contato"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c604dfcf-3d11-4be9-8d34-cda5ece4c826",
+                    "leftValue": "={{ $json.tipo_origem }}",
+                    "rightValue": "portal",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Portal"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -816,
+        -128
+      ],
+      "id": "551ef329-f199-48bd-a8a6-9efcc8a100ad",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('NovoLead').item.json.body.sessionId }}",
+        "tableName": "imobipro_messages",
+        "contextWindowLength": 0
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        -368,
+        -128
+      ],
+      "id": "08d4a249-1ea9-4da0-adeb-d781cf890e2e",
+      "name": "Postgres Chat Memory1",
+      "credentials": {
+        "postgres": {
+          "id": "zdfMPtoog6LpGdSI",
+          "name": "Teste Imobi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-5-nano",
+        "options": {}
+      },
+      "id": "d136c1ca-7409-4030-8282-942907808f5d",
+      "name": "OpenAI3",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1808,
+        160
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "rQFPB3DN2Bf0NfRw",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "0677163f-aaf2-4989-ba98-875a1774ab24",
+      "name": "Loop Over Items3",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"messages\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"required\": [\"messages\"]\n}\n"
+      },
+      "id": "8958c971-f26e-40fa-93c4-a178d6fb4101",
+      "name": "OutputParser1",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        1936,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Whatsapp message to be splitted and formated: {{ $json.output }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Você é um assistente de formatação para WhatsApp e deve retornar as mensagens no formato JSON conforme as instruções abaixo.\n\n## OBJETIVO\nDividir um texto longo em mensagens menores e naturais para envio no WhatsApp.\n\n## FORMATO DE SAÍDA (OBRIGATÓRIO):\nRetorne **somente** um JSON com esta estrutura:\n\n{\n  \"messages\": [\n    \"mensagem 1\",\n    \"mensagem 2\",\n    \"mensagem 3\"\n  ]\n}\n\n## REGRAS ESSENCIAIS:\n- Nunca crie mensagens vazias.  \n- Divida o texto de forma natural, como se estivesse conversando com um humano.  \n- Sempre que houver *bullet points* (listas com `•`, `-` ou `~`), mantenha todos juntos na **mesma mensagem** com o **título imediatamente acima** (exemplo: “🏠 O que você vai encontrar no Arbo?”).  \n- Preserve o sentido das frases. Não corte uma frase no meio.  \n- Sempre que houver frases-título com emoji como “📍 Onde fica?”, **adicione uma quebra de linha após a pergunta**, colocando o conteúdo logo abaixo.\n\n## FORMATAÇÃO DO WHATSAPP:\n✅ Use o markdown correto do WhatsApp:\n- *negrito* → use `*` em vez de `**`\n- _itálico_ → se necessário (muito raro)\n- Use emojis, se presentes, no início da frase como estão no texto original\n\n## EXEMPLO DE SAÍDA:\n\n```json\n{\n  \"messages\": [\n    \"O Arbo é um empreendimento residencial localizado em uma área privilegiada, vizinho ao Parque dos Poderes, oferecendo apartamentos com variadas opções de dormitórios e unidades garden com área externa e churrasqueira na varanda.\",\n    \"O condomínio proporciona uma infraestrutura completa de lazer e comodidades para toda a família, com espaços amplos e diversos equipamentos esportivos e de convivência.\",\n    \"📍 Onde fica?\\nAvenida Santa Luzia, Jardim Veraneio, Campo Grande, MS\",\n    \"🏠 O que você vai encontrar no Arbo?\\n• Apartamentos de 1, 2 e 3 quartos, incluindo unidades garden no térreo com área externa e churrasqueira na varanda\\n• Lazer completo com salão de festas, salão de jogos, academia interna e externa\\n• Espaço gourmet coberto para 50 pessoas com grelha argentina de parrilla e 2 quiosques de churrasqueira para 15 pessoas cada\\n• Piscinas adulto e infantil, playground, espaço zen, praça de convivência, redário e pet place\\n• Estruturas esportivas: bicicletário, quadra poliesportiva, quadra de beach tênis e quadra de futevôlei/beach tennis\"\n  ]\n}\n"
+            }
+          ]
+        }
+      },
+      "id": "0a63f8c5-d15a-4b65-b8cb-d01977cd5795",
+      "name": "Parser  Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        1776,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output.messages",
+        "options": {
+          "destinationFieldName": "output"
+        }
+      },
+      "id": "dcbbb006-6252-4c6a-8bbd-8ba367639cf2",
+      "name": "Split de Mensagem",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2128,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "id": "cf20d384-2450-48fe-8eb9-a4c217d65fa5",
+      "name": "1 segundo",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2672,
+        64
+      ],
+      "webhookId": "c7b28df9-d948-480a-b199-b6d49b3c8b01"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $('NovoLead').item.json.body.instancia }}",
+        "remoteJid": "={{ $('NovoLead').item.json.body.remoteJid }}",
+        "messageText": "={{ $json.output }}",
+        "options_message": {
+          "linkPreview": false
+        }
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        2512,
+        64
+      ],
+      "id": "b0153aac-d0ff-4e28-b5e2-0d33bf6004cf",
+      "name": "resposta_texto1",
+      "credentials": {
+        "evolutionApi": {
+          "id": "zbqvM1wtXe4Ivrv2",
+          "name": "Devlabz"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        2512,
+        -96
+      ],
+      "id": "c7c32739-7293-483d-a4da-3504e6392e0b",
+      "name": "Limit1"
+    }
+  ],
+  "pinData": {
+    "NovoLead": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.n8nlabz.com.br",
+            "user-agent": "axios/1.8.3",
+            "content-length": "489",
+            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
+            "accept-encoding": "gzip, compress, deflate, br",
+            "content-type": "application/json",
+            "x-api-key": "Mzc2NGIzOGM0YzAyNDIxNThlN2FhMTFmMTNjZGMzNWQtMTc0Nzc4ODAxNA==",
+            "x-forwarded-for": "172.18.0.1",
+            "x-forwarded-host": "webhook.n8nlabz.com.br",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "3271e4ed253d",
+            "x-real-ip": "172.18.0.1"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "mensagem": "Olá! Tenho interesse no apartamento, R$ 818.922 - Jardim Veraneio,  que encontrei no VivaReal: https://www.vivareal.com.br/imovel/apartamento-3-quartos-jardim-veraneio-bairros-campo-grande-com-garagem-75m2-venda-RS818922-id-2784399536/. Código da oferta: 15. Código do anúncio no VivaReal: 2784399536",
+            "status": "Novo Lead",
+            "remoteJid": "5519994419319@s.whatsapp.net",
+            "messageId": "3EB0D91CAA236B4CC970D1",
+            "instancia": "sdr",
+            "sessionId": "c0ccf004-8773-4910-b7d5-da22f5d13f73"
+          },
+          "webhookUrl": "https://webhook.n8nlabz.com.br/webhook/novo-lead",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "Update a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Enviar texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NovoLead": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parar Resposta Agent1": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar texto": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar texto1": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a row": {
+      "main": [
+        [
+          {
+            "node": "Get a row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Enviar texto1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar texto2": {
+      "main": [
+        [
+          {
+            "node": "Parar Resposta Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar imagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar imagem": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parser  Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Enviar texto2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a row1": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Enviar texto4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Parser  Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items3": {
+      "main": [
+        [
+          {
+            "node": "Limit1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "resposta_texto1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OutputParser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Parser  Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser  Chain": {
+      "main": [
+        [
+          {
+            "node": "Split de Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split de Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1 segundo": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "resposta_texto1": {
+      "main": [
+        [
+          {
+            "node": "1 segundo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit1": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e404e1f1-4bdd-4494-adf5-235f45e53435",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "af2c2dce58b7b891043a58fa084cb85b78cc3ee626cfa19de4b473f0aab51bb8"
+  },
+  "id": "jBWSjcONRIphQ2gD",
+  "tags": []
+}

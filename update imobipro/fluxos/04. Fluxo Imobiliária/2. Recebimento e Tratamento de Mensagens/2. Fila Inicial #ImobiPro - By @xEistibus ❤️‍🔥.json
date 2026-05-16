@@ -1,0 +1,242 @@
+{
+  "name": "Fila Inicial #ImobiPro",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sdr",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        -80
+      ],
+      "id": "5ecc0684-9fea-4990-94df-2e2cfffb45d7",
+      "name": "SDR",
+      "webhookId": "79b885cd-f454-4930-80bf-b1f0aae39825"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b00e1cd0-1861-4576-933d-be70d576ec38",
+              "name": "instancia",
+              "value": "={{ $json.body.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "7239f14a-b590-4216-8e81-3833d04b2e4e",
+              "name": "remoteJid",
+              "value": "={{ $json.body.data.key.remoteJid }}",
+              "type": "string"
+            },
+            {
+              "id": "90e0967b-81c1-4067-9aab-57812c48ddb0",
+              "name": "fromMe",
+              "value": "={{ $json.body.data.key.fromMe }}",
+              "type": "boolean"
+            },
+            {
+              "id": "84c036c4-55d0-4aee-9b72-8f11f04a16f6",
+              "name": "messageId",
+              "value": "={{ $json.body.data.key.id }}",
+              "type": "string"
+            },
+            {
+              "id": "f3f87305-525c-4a8b-9cf0-ded3866ab166",
+              "name": "conversation",
+              "value": "={{ $json.body.data.message.conversation }}",
+              "type": "string"
+            },
+            {
+              "id": "e702b92d-d901-4ed6-8d93-0d549b5fe359",
+              "name": "messageType",
+              "value": "={{ $json.body.data.messageType }}",
+              "type": "string"
+            },
+            {
+              "id": "cdfffb88-4954-4863-ab48-4284afabcc74",
+              "name": "sender",
+              "value": "={{ $json.body.sender }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -480,
+        -80
+      ],
+      "id": "c9494f66-1c6a-4b7f-b85e-dee2cc6ab986",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "queue": "sdr",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rabbitmq",
+      "typeVersion": 1.1,
+      "position": [
+        32,
+        -208
+      ],
+      "id": "f579e433-5a44-4882-b940-1f52fe096081",
+      "name": "Producer SDR",
+      "credentials": {
+        "rabbitmq": {
+          "id": "z1WHI6Y2yeHRCV18",
+          "name": "RabbitMQ account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "02f660ba-ae29-4dca-a36f-9bbf10ec5de0",
+              "leftValue": "={{ $json.remoteJid }}",
+              "rightValue": "5519994419319@s.whatsapp.net",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -272,
+        -80
+      ],
+      "id": "92598766-e110-485c-8afc-b38ca9a7e886",
+      "name": "If"
+    }
+  ],
+  "pinData": {
+    "SDR": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.n8nlabz.com.br",
+            "user-agent": "axios/1.10.0",
+            "content-length": "1006",
+            "accept": "application/json, text/plain, */*",
+            "accept-encoding": "gzip, compress, deflate, br",
+            "content-type": "application/json",
+            "x-forwarded-for": "85.31.230.218",
+            "x-forwarded-host": "webhook.n8nlabz.com.br",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "3271e4ed253d",
+            "x-real-ip": "85.31.230.218"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "event": "messages.upsert",
+            "instance": "devlabz",
+            "data": {
+              "key": {
+                "remoteJid": "5519994419319@s.whatsapp.net",
+                "fromMe": false,
+                "id": "3A69FF419CE9ECC869C8",
+                "senderLid": "101249626153092@lid"
+              },
+              "pushName": "Lucas Duarte",
+              "status": "DELIVERY_ACK",
+              "message": {
+                "conversation": "Estas duas semana para frente não consigo , mas podemos sim, até vou melhorar algumas coisas e nos falamos",
+                "messageContextInfo": {
+                  "deviceListMetadata": {
+                    "senderKeyHash": "FmqcXrhVbKRj5w==",
+                    "senderTimestamp": "1755247323",
+                    "recipientKeyHash": "hWWkn1v64AOL2g==",
+                    "recipientTimestamp": "1754799836"
+                  },
+                  "deviceListMetadataVersion": 2,
+                  "messageSecret": "zvSvFobyv6XcSGaVblFaz4rFCFHo9eUwkGldtpjevX4="
+                }
+              },
+              "messageType": "conversation",
+              "messageTimestamp": 1755719415,
+              "instanceId": "ab3cc246-edb7-4756-b2a8-c2427ce8386e",
+              "source": "ios"
+            },
+            "destination": "https://webhook.n8nlabz.com.br/webhook/sdr",
+            "date_time": "2025-08-20T16:50:15.326Z",
+            "sender": "5519982043185@s.whatsapp.net",
+            "server_url": "https://evolabz.n8nlabz.com.br",
+            "apikey": "88B1058D5CDF-4D2C-A46A-B18CE15A04EF"
+          },
+          "webhookUrl": "https://webhook.n8nlabz.com.br/webhook/sdr",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "SDR": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Producer SDR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "43c18e9d-c3f0-4d4e-9ab6-b104dbd7a6d2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "af2c2dce58b7b891043a58fa084cb85b78cc3ee626cfa19de4b473f0aab51bb8"
+  },
+  "id": "rMiQZIwcC0hQzjwY",
+  "tags": []
+}

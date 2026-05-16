@@ -1,0 +1,1197 @@
+﻿{
+  "name": "Salva HistÃ³rico #ImobiPro",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "jsonExample",
+        "jsonExample": "  {\n    \"deliveryTag\": 1,\n    \"redelivered\": false,\n    \"instancia\": \"fernandoriolo\",\n    \"remoteJid\": \"5519994419319@s.whatsapp.net\",\n    \"fromMe\": true,\n    \"messageId\": \"3EB0B7FDBC7DF0283E599D\",\n    \"conversation\": \"OlÃ¡! Tenho interesse no apartamento, R$ 350.000 - Centro, Americana - SP que encontrei no VivaReal: https://www.vivareal.com.br/imovel/apartamento-2-quartos-centro-americana-com-garagem-56m2-venda-RS350000-id-2816556128/. CÃ³digo da oferta: 20663. CÃ³digo do anÃºncio no VivaReal: 2816556128\",\n    \"messageType\": \"conversation\",\n    \"sender\": \"5511988516536@s.whatsapp.net\",\n    \"func\": \"ativado\"\n  }"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -2432,
+        240
+      ],
+      "id": "3a92d382-5644-4722-8042-812fa0fa9d4c",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "action": "generate"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        -1856,
+        336
+      ],
+      "id": "f8da9a48-7ffd-4443-a89c-feac666bd859",
+      "name": "Gerar sessionID2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4a6d9aac-8565-4c58-abe3-8741393a5535",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2016,
+        240
+      ],
+      "id": "77fa649b-303d-4083-97c4-a598c20dc9db",
+      "name": "If17"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pega a mensagem recebida do item de entrada\nconst mensagem = $json.mensagem || \"\";\n\n// Monta o objeto no formato desejado\nconst resultado = {\n  type: \"ai\",\n  content: $('When Executed by Another Workflow').first().json.conversation || $json.text,\n  tool_calls: [],\n  additional_kwargs: {},\n  response_metadata: {},\n  invalid_tool_calls: []\n};\n\n// Retorna como output\nreturn [{ json: resultado }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        400
+      ],
+      "id": "c090764c-966e-4e20-825a-7c58845198b6",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pega a mensagem recebida do item de entrada\nconst mensagem = $json.mensagem || \"\";\n\n// Monta o objeto no formato desejado\nconst resultado = {\n  \"type\": \"human\",\n  \"content\": $('When Executed by Another Workflow').first().json.conversation || $json.text,\n  \"additional_kwargs\": {},\n  \"response_metadata\": {}\n};\n\n// Retorna como output\nreturn [{ json: resultado }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        240
+      ],
+      "id": "3ffec421-9164-42ca-ade9-1e9bec5c07bf",
+      "name": "Code6"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "base64",
+        "options": {
+          "fileName": "file.ogg",
+          "mimeType": "={{ $('Webhook').first().json.body.data.message.audioMessage.mimetype }}"
+        }
+      },
+      "id": "632bfa3c-c918-43ec-b1c3-c17aee2cda95",
+      "name": "Convert to File",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -896,
+        48
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7066ff08-1370-464f-a588-86aa37025523",
+              "name": "text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "33a31d7a-a463-48bc-85c2-0ccad96afda2",
+      "name": "edit1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -608,
+        80
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "09db48f1-b99e-4760-8a9b-10944a1ce0d2",
+              "name": "text",
+              "value": "={{ $('When Executed by Another Workflow').first().json.conversation }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5e5201e5-45ae-4bbf-8610-2a45816f0f14",
+      "name": "edit2",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -816,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "base64",
+        "options": {}
+      },
+      "id": "8b6f9c4e-5f3b-412a-a707-711303d6b99e",
+      "name": "Convert to File1",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -896,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "text": "=Diga o conteÃºdo da imagem de forma concisa sem comentÃ¡rios adicionais, diga apenas o que consta na imagem, seja preciso em informar o que Ã© a imagem em poucas palavras, se for um carro, diga qual Ã© a marca e o modelo.",
+        "inputType": "base64",
+        "options": {}
+      },
+      "id": "975af706-d3f1-4a3e-80d3-35cbb4070709",
+      "name": "OpenAI1",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.6,
+      "position": [
+        -752,
+        240
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "rQFPB3DN2Bf0NfRw",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('When Executed by Another Workflow').first().json.messageType }}",
+                    "rightValue": "audioMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "fff4f29c-04c3-413d-87a3-4f3492a982c7"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4a719a6f-b912-48ec-81a5-920afde042b6",
+                    "leftValue": "={{ $('When Executed by Another Workflow').first().json.messageType }}",
+                    "rightValue": "imageMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "50c6e2b0-2494-4780-abd8-84a0e4213091",
+                    "leftValue": "={{ $('When Executed by Another Workflow').first().json.messageType }}",
+                    "rightValue": "conversation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7ba7518b-c41f-4a98-90f9-2be11eb1f900",
+      "name": "message type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -1232,
+        240
+      ],
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "60d6b895-fea6-4d7f-932a-b8771c97242e",
+              "name": "text",
+              "value": "={{ $json.text || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "04709074-6aaa-491a-b937-7ca6b787b95c",
+      "name": "initial customer message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -416,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer GROQ_API_KEY_REMOVED"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "whisper-large-v3"
+            },
+            {
+              "name": "prompt",
+              "value": "Converta o Ã¡udio em texto de forma clara e precisa."
+            },
+            {
+              "name": "language",
+              "value": "pt"
+            },
+            {
+              "name": "response_format",
+              "value": "verbose_json"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -752,
+        48
+      ],
+      "id": "27306689-4e0f-4d54-880d-8475e5e5ae2e",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1fdbe70-0c0e-46a1-accd-a79f4fd17098",
+              "name": "text",
+              "value": "={{ $('Refinador de Dados').first().json.Caption }}\nFoto Enviada: {{ $json.content }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "33ce2258-408c-4374-a5b2-850cd1abe12c",
+      "name": "Edit Fields1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -608,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f553042c-39d5-4bdd-8082-fbd390726fcd",
+              "name": "base64",
+              "value": "={{ $(\"Webhook\").item.json.body.data.message.base64 }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b46bc21f-d06c-4b2b-aa83-6ae9ff449ee1",
+      "name": "base1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1040,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('When Executed by Another Workflow').first().json.func }}",
+                    "rightValue": "ativado",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "40af69e3-1e91-47cb-a2ca-eb087f1041c4"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ativado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3d0d970e-bdf3-458b-b7f6-bfcb45343073",
+                    "leftValue": "={{ $('When Executed by Another Workflow').first().json.func }}",
+                    "rightValue": "desativado",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "desativado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d6e18073-5328-4075-b771-6809d0cc43f8",
+                    "leftValue": "={{ $('When Executed by Another Workflow').first().json.func }}",
+                    "rightValue": "parar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "parar"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -208,
+        240
+      ],
+      "id": "350c2958-f958-4d44-9be1-de37c4b72d09",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3d5ab6b5-a0c5-43ab-af7f-297aeb838c7e",
+              "name": "conversation",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "4fd6e828-b9f8-4feb-b937-2b321b9f01e6",
+              "name": "status",
+              "value": "={{ $('Merge').item.json.stage }}",
+              "type": "string"
+            },
+            {
+              "id": "0bb3eea8-3b3a-40bc-8ccf-d9d0b28281be",
+              "name": "sessionid",
+              "value": "={{ $('Merge').item.json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        48,
+        48
+      ],
+      "id": "383c9ecb-6900-4225-b5ae-08c29e2823d8",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1408,
+        240
+      ],
+      "id": "d7963720-50c0-4158-b8c5-a7497f6dd44b",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f553042c-39d5-4bdd-8082-fbd390726fcd",
+              "name": "base64",
+              "value": "={{ $(\"Webhook\").item.json.body.data.message.base64 }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ef00068f-1042-4493-982e-f5f1374655ff",
+      "name": "base",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1040,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "leads",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "id",
+              "fieldValue": "={{ $json.data }}"
+            },
+            {
+              "fieldId": "phone",
+              "fieldValue": "={{ $('When Executed by Another Workflow').item.json.remoteJid }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1632,
+        336
+      ],
+      "id": "d2e524bf-e3cc-475c-bb92-1d3e8e99d1dd",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "leads",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "phone",
+              "keyValue": "={{ $json.remoteJid }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2192,
+        240
+      ],
+      "id": "33c95d6d-b541-46fc-95de-1b47de4462ed",
+      "name": "Get a row",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "85a09795-17b5-439d-9381-7d475e2876af",
+              "leftValue": "={{ $json.stage }}",
+              "rightValue": "Novo Lead",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1856,
+        144
+      ],
+      "id": "98abf82b-83dc-4428-9389-4a3e602bc962",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "leads",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Get a row').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "stage",
+              "fieldValue": "Interessado"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1632,
+        160
+      ],
+      "id": "84ec5d53-8bd8-4a5b-ad52-43fde4c3009b",
+      "name": "Update a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "imobipro_messages",
+          "mode": "list",
+          "cachedResultName": "imobipro_messages"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $('Merge').item.json.sessionid }}",
+            "message": "={{ $json }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        400
+      ],
+      "id": "732e724c-2165-491f-97ff-453b1f7c6375",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "zdfMPtoog6LpGdSI",
+          "name": "Teste Imobi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "imobipro_messages",
+          "mode": "list",
+          "cachedResultName": "imobipro_messages"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $('Merge').item.json.sessionid }}",
+            "message": "={{ $json }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "data",
+              "displayName": "data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        240
+      ],
+      "id": "275c7777-9755-4a96-b1da-e251a32c51c0",
+      "name": "Insert rows in a table1",
+      "credentials": {
+        "postgres": {
+          "id": "zdfMPtoog6LpGdSI",
+          "name": "Teste Imobi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "5519994419319@s.whatsapp.net"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1696,
+        -208
+      ],
+      "id": "cfd49d22-8b49-4d50-9077-3bf30d722cca",
+      "name": "Redis",
+      "credentials": {
+        "redis": {
+          "id": "dA56R2Qx4MaS8Q4j",
+          "name": "Redis account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "When Executed by Another Workflow": [
+      {
+        "json": {
+          "deliveryTag": 6,
+          "redelivered": false,
+          "instancia": "sdr",
+          "remoteJid": "5519994419319@s.whatsapp.net",
+          "fromMe": false,
+          "messageId": "3EB0557E15350CC8DA8EBD",
+          "conversation": "OlÃ¡! Tenho interesse no apartamento, R$ 818.922 - Jardim Veraneio,  que encontrei no VivaReal: https://www.vivareal.com.br/imovel/apartamento-3-quartos-jardim-veraneio-bairros-campo-grande-com-garagem-75m2-venda-RS818922-id-2784399536/. CÃ³digo da oferta: 15. CÃ³digo do anÃºncio no VivaReal: 2784399536",
+          "messageType": "conversation",
+          "sender": "5519982043185@s.whatsapp.net",
+          "func": "ativado"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Get a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar sessionID2": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If17": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gerar sessionID2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code6": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "edit1": {
+      "main": [
+        [
+          {
+            "node": "initial customer message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "edit2": {
+      "main": [
+        [
+          {
+            "node": "initial customer message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File1": {
+      "main": [
+        [
+          {
+            "node": "OpenAI1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "message type": {
+      "main": [
+        [
+          {
+            "node": "base1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "base",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "edit2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "initial customer message": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "edit1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "initial customer message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "base1": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code6",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "message type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "base": {
+      "main": [
+        [
+          {
+            "node": "Convert to File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get a row": {
+      "main": [
+        [
+          {
+            "node": "If17",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a row": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "57133200-4d30-4aaa-aa09-aff33e1c6596",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "af2c2dce58b7b891043a58fa084cb85b78cc3ee626cfa19de4b473f0aab51bb8"
+  },
+  "id": "75OXQ2DauVzyAqem",
+  "tags": []
+}

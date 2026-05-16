@@ -1,0 +1,52 @@
+version: "3.7"
+services:
+  imob_n8nlabz:
+
+    image: n8nlabz/imobipro:latest
+
+
+    networks:
+      - SUANETWORK #Nome da sua rede
+    environment:
+      - PROJECT_NAME=[NOME DO PROJETO] #NOME DO SEU PROJETO
+      - VITE_SUPABASE_URL=https://[ID DO PROJETO].supabase.co #URL DO SEU PROJETO
+      - VITE_SUPABASE_ANON_KEY=[ANON KEY] #ANON KEY DO SEU PROJETO
+      - SUPABASE_ACCESS_TOKEN=[ACCESS TOKEN DO PROJETO] #TOKEN DO SEU PROJETO
+
+      - N8NLABZ_ACESS_TOKEN=[TOKEN LABZTOKEN - SOLICITAR NO WHATSAPP] #TOKEN N8NLABZ
+      - SUPABASE_ID_PROJECT=[ID DO PROJETO] #ID DO SEU PROJETO
+      - SUPABASE_DB_PASSWORD=[SENHA DO BANCO DE DADOS] #SENHA DO SEU BANCO
+      - VITE_WHATSAPP_API_BASE=[URL DO SEU N8N] #URL DO SEU WEBHOOK
+      - DATABASE_URL=postgresql://postgres.[ID DO PROJETO]:[SENHA DO BANCO DE DADOS]@aws-1-us-east-1.pooler.supabase.com:5432/postgres #URL DO SEU BANCO
+      - ALLOWED_HOSTS=[SEU LINK E DOMINIO] #HOST DO SEU SITE
+
+      #CONFIGURAÇÃO INICIAL SÓ ATIVAR NA PRIMEIRA VEZ
+      - MIGRATION_EXECUTE=true
+      - SEED_EXECUTE=true
+    
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.imob_n8nlabz.rule=Host(`[SEU LINK E DOMINIO]`) #HOST DO SEU SITE
+        - traefik.http.routers.imob_n8nlabz.entrypoints=websecure
+        - traefik.http.routers.imob_n8nlabz.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.imob_n8nlabz.service=imob_n8nlabz
+        - traefik.http.services.imob_n8nlabz.loadbalancer.server.port=4173
+        - traefik.http.services.imob_n8nlabz.loadbalancer.passHostHeader=true
+
+volumes:
+  imob_n8nlabz_data:
+    external: true
+    name: imob_n8nlabz_data
+
+networks:
+  SUANETWORK: ## Nome da rede interna
+    external: true
+    name: SUANETWORK ## Nome da rede interna

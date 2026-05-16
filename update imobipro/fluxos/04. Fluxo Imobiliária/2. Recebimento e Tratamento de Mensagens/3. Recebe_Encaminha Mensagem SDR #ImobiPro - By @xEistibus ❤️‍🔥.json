@@ -1,0 +1,1281 @@
+{
+  "name": "Recebe/Encaminha Mensagem SDR #ImobiPro",
+  "nodes": [
+    {
+      "parameters": {
+        "queue": "sdr",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rabbitmqTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2048,
+        976
+      ],
+      "id": "4847e4c9-1807-4a04-9668-84bf0fbc1d0b",
+      "name": "Consumer SDR1",
+      "credentials": {
+        "rabbitmq": {
+          "id": "z1WHI6Y2yeHRCV18",
+          "name": "RabbitMQ account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.fromMe }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "f6d9b4d9-5dd1-4979-b37b-97f6957b043e"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Agent"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "96cf6bb0-6a16-42a2-aaf9-c94307540450",
+                    "leftValue": "={{ $json.fromMe }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "false",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Cliente"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -1696,
+        976
+      ],
+      "id": "003506c5-2276-47fa-9728-bb47e1dda57c",
+      "name": "Switch2"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "block",
+        "key": "={{ $json.remoteJid }}_block",
+        "options": {}
+      },
+      "id": "9f425937-656c-4988-9793-2bee382ca4cf",
+      "name": "Verifica Status Block1",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1456,
+        1056
+      ],
+      "credentials": {
+        "redis": {
+          "id": "dA56R2Qx4MaS8Q4j",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $('Normalizador1').item.json.remoteJid }}_block",
+        "value": "true",
+        "keyType": "string",
+        "expire": true,
+        "ttl": 50
+      },
+      "id": "0583b052-d89c-46cc-9cbf-569059858f14",
+      "name": "Parar Resposta Agent1",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1456,
+        880
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "redis": {
+          "id": "dA56R2Qx4MaS8Q4j",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "75OXQ2DauVzyAqem",
+          "mode": "list",
+          "cachedResultName": "Salva Histórico #ImobiPro"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "redelivered": "={{ $('Normalizador1').item.json.redelivered }}",
+            "fromMe": "={{ $('Normalizador1').item.json.fromMe }}",
+            "deliveryTag": "={{ $('Normalizador1').item.json.deliveryTag }}",
+            "instancia": "={{ $('Normalizador1').item.json.instancia }}",
+            "remoteJid": "={{ $('Normalizador1').item.json.remoteJid }}",
+            "messageId": "={{ $('Normalizador1').item.json.messageId }}",
+            "conversation": "={{ $('Normalizador1').item.json.conversation }}",
+            "messageType": "={{ $('Normalizador1').item.json.messageType }}",
+            "sender": "={{ $('Normalizador1').item.json.sender }}",
+            "func": "={{ $json.func }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "deliveryTag",
+              "displayName": "deliveryTag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            },
+            {
+              "id": "redelivered",
+              "displayName": "redelivered",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "boolean"
+            },
+            {
+              "id": "instancia",
+              "displayName": "instancia",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "remoteJid",
+              "displayName": "remoteJid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "fromMe",
+              "displayName": "fromMe",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "boolean"
+            },
+            {
+              "id": "messageId",
+              "displayName": "messageId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "conversation",
+              "displayName": "conversation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "messageType",
+              "displayName": "messageType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "sender",
+              "displayName": "sender",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "func",
+              "displayName": "func",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -736,
+        880
+      ],
+      "id": "f4a7ba75-a2cd-4c05-807c-26770bc68c42",
+      "name": "Execute Workflow1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.block }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "397b2f90-6ff5-4626-89c3-fbb2b10b1ad9"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Agent Desativada"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "3ef0e01c-cc14-4663-bb4d-2905b350c3ab",
+                    "leftValue": "={{ $json.block }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "empty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Agent Ativada"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8281f21f-cc54-49b7-b283-5d0cc2cac634",
+      "name": "Agent Ativo/Inativo1",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -1264,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Este código assume que o payload está no formato de array, como no seu exemplo\nconst result = [];\n\nfor (const item of items) {\n  // Fazendo o parse do content (transformar string em JSON)\n  const contentData = JSON.parse(item.json.content);\n\n  // Montando o novo objeto com as informações desejadas\n  result.push({\n    json: {\n      deliveryTag: item.json.fields.deliveryTag,\n      redelivered: item.json.fields.redelivered,\n      ...contentData // Espalha os campos do content direto no json final\n    }\n  });\n}\n\nreturn result;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1856,
+        976
+      ],
+      "id": "7ae784aa-5db6-41df-ad05-695cfa210529",
+      "name": "Normalizador1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b2a829c9-d5bd-4344-a6ce-9033abc95894",
+              "name": "func",
+              "value": "parar",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1264,
+        880
+      ],
+      "id": "f8fa3f2d-64ff-4145-a3ef-6fe024ef5069",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a22e4e0c-8d1a-4925-929e-92f6ffb5e3cb",
+              "name": "func",
+              "value": "desativado",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1024,
+        976
+      ],
+      "id": "2456386c-a468-46de-b3ec-743c3542821e",
+      "name": "Edit Fields6"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1c680261-e816-48c8-a48f-84176a296861",
+              "name": "func",
+              "value": "ativado",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1024,
+        1152
+      ],
+      "id": "c2aee0b0-2dca-4c3b-9ebd-de161ab14379",
+      "name": "Edit Fields7"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pegando o item (primeiro elemento do array)\nconst item = $input.item.json;\n\n// Contando quantas propriedades tem no objeto\nconst quantidadeDePropriedades = Object.keys(item).length;\n\n// Se tiver até 3 propriedades, retornamos 'conversation'\nif (quantidadeDePropriedades <= 3) {\n\treturn [\n\t\t{\n\t\t\tjson: { result: 'conversation' }\n\t\t}\n\t];\n}\n\n// Se tiver 4 ou mais propriedades, retornamos 'content'\nreturn [\n\t{\n\t\tjson: { result: 'content' }\n\t}\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -608,
+        880
+      ],
+      "id": "1038671b-4024-4302-9e1d-f861064d9ee2",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.result }}",
+                    "rightValue": "content",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "33299650-047d-4c7e-ba0a-e756fff804ef"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "=Agente Pausado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "85ba065a-43fd-4fd0-b848-05fefd330c63",
+                    "leftValue": "={{ $json.result }}",
+                    "rightValue": "conversation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Agente Ligado"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -464,
+        880
+      ],
+      "id": "e11b76f9-8fab-493c-a419-685d3a7b7f35",
+      "name": "Switch4"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        736
+      ],
+      "id": "ab6a2fb0-a6bd-4fd0-8ad7-57a9af048f6d",
+      "name": "No Operation, do nothing1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "60d6b895-fea6-4d7f-932a-b8771c97242e",
+              "name": "text",
+              "value": "={{ $('Execute Workflow1').item.json.conversation }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7a1d7b3a-eef4-4604-9e2e-b6640d5461fc",
+      "name": "initial customer message1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -224,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Execute Workflow1').item.json.status }}",
+                    "rightValue": "Novo Lead",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "ad38b310-b814-45bf-a164-cf29bab4a0fd"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Novo Lead"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "869b87c8-9344-4b0a-afb4-5eeda31237a3",
+                    "leftValue": "={{ $('Execute Workflow1').item.json.status }}",
+                    "rightValue": "Interessado",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Interessado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0a33ec41-e33c-419e-bcff-0bfa93ffe405",
+                    "leftValue": "={{ $('Execute Workflow1').item.json.status }}",
+                    "rightValue": "Visita Agendada",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Visita Agendada"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "21d30883-af59-4872-b021-5209cb506458",
+                    "leftValue": "={{ $('Execute Workflow1').item.json.status }}",
+                    "rightValue": "Em Negociação",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Em Negociação"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "424ab216-43a6-4ba2-b691-a9edc55936f8",
+                    "leftValue": "={{ $('Execute Workflow1').item.json.status }}",
+                    "rightValue": "Documentação",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Documentação"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d460eaad-f3fb-4c87-a263-2c709062e8af",
+                    "leftValue": "={{ $('Execute Workflow1').item.json.status }}",
+                    "rightValue": "Contrato",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Contrato"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6109675f-05ae-4c83-aba2-5ed32c4e4b58",
+                    "leftValue": "={{ $('Execute Workflow1').item.json.status }}",
+                    "rightValue": "Fechamento",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "=Fechamento"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        960,
+        752
+      ],
+      "id": "36160455-ae5b-4c82-ad45-03b8851f3230",
+      "name": "Switch5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webhook.n8nlabz.com.br/webhook/novo-lead",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "mensagem",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "status",
+              "value": "={{ $('Execute Workflow1').item.json.status }}"
+            },
+            {
+              "name": "=remoteJid",
+              "value": "={{ $('Normalizador1').last().json.remoteJid }}"
+            },
+            {
+              "name": "messageId",
+              "value": "={{ $('Normalizador1').last().json.messageId }}"
+            },
+            {
+              "name": "instancia",
+              "value": "={{ $('Normalizador1').last().json.instancia }}"
+            },
+            {
+              "name": "sessionId",
+              "value": "={{ $('Execute Workflow1').item.json.sessionid }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1360,
+        672
+      ],
+      "id": "e62ed7e6-66a5-4e8a-acd6-a40abacec372",
+      "name": "HTTP Request2",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "nAnn8yt1bqiIsrqP",
+          "name": "heygen"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webhook.n8nlabz.com.br/webhook/interessado",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "mensagem",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "status",
+              "value": "={{ $('Execute Workflow1').last().json.status }}"
+            },
+            {
+              "name": "=remoteJid",
+              "value": "={{ $('Normalizador1').last().json.remoteJid }}"
+            },
+            {
+              "name": "messageId",
+              "value": "={{ $('Normalizador1').last().json.messageId }}"
+            },
+            {
+              "name": "instancia",
+              "value": "={{ $('Normalizador1').last().json.instancia }}"
+            },
+            {
+              "name": "sessionId",
+              "value": "={{ $('Execute Workflow1').last().json.sessionid }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1360,
+        832
+      ],
+      "id": "9da4876f-34fa-4b33-be93-36c7312f90f3",
+      "name": "HTTP Request3",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "nAnn8yt1bqiIsrqP",
+          "name": "heygen"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "id": "7b0b3639-a278-41f3-9c88-41edfb01e237",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        112,
+        896
+      ],
+      "webhookId": "3cccf924-4876-4755-b4b3-ab46e09d4c07"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "9e9b4155-e399-4936-a5db-2d79c8cb871f",
+              "leftValue": "={{ $json.message.last() }}",
+              "rightValue": "={{ $('initial customer message1').item.json.text }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ab523bd3-792c-4d6d-a17b-7717a27335c4",
+      "name": "If1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        416,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "push",
+        "list": "={{ $('Normalizador1').last().json.remoteJid }}",
+        "messageData": "={{ $json.text }}",
+        "tail": true
+      },
+      "id": "1bceecec-e162-49c2-99a1-d345d45e3e1b",
+      "name": "Messages List",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        896
+      ],
+      "credentials": {
+        "redis": {
+          "id": "dA56R2Qx4MaS8Q4j",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "message",
+        "key": "={{ $('Normalizador1').last().json.remoteJid }}",
+        "options": {}
+      },
+      "id": "00b55d81-6c10-4685-ad5a-8ed273c91699",
+      "name": "Pull the Messages",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        256,
+        896
+      ],
+      "credentials": {
+        "redis": {
+          "id": "dA56R2Qx4MaS8Q4j",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "={{ $('Normalizador1').last().json.remoteJid }}"
+      },
+      "id": "c0473f0c-c7d6-4bf0-ab01-5df472113333",
+      "name": "Redis",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        736,
+        832
+      ],
+      "credentials": {
+        "redis": {
+          "id": "dA56R2Qx4MaS8Q4j",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        592,
+        1024
+      ],
+      "id": "f41fba2c-67d6-430c-a617-257596b17951",
+      "name": "No Operation, do nothing",
+      "notes": "Se a mensagem chegar aqui, significa que foram mais de uma mensagem para concatenar, e a primeira chegou aqui para juntar com a(s) próxima(s)."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bce70488-3d4e-412d-9c28-4858906bc722",
+              "name": "message",
+              "value": "={{ $('Pull the Messages').item.json.message.join('\\n') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ba146ef5-762d-4204-b86f-73338c645f28",
+      "name": "Edit Fields8",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        592,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "5519994419319"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1440,
+        512
+      ],
+      "id": "cc52cd8a-867e-4811-b2ff-07dc3a13d982",
+      "name": "Redis1",
+      "credentials": {
+        "redis": {
+          "id": "dA56R2Qx4MaS8Q4j",
+          "name": "Redis account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Consumer SDR1": [
+      {
+        "json": {
+          "fields": {
+            "consumerTag": "amq.ctag-zJc3ld_rKJkdZS3H1ZZ_EQ",
+            "deliveryTag": 1,
+            "redelivered": false,
+            "exchange": "",
+            "routingKey": "sdr"
+          },
+          "properties": {
+            "headers": {}
+          },
+          "content": "{\"instancia\":\"devlabz\",\"remoteJid\":\"5519994419319@s.whatsapp.net\",\"fromMe\":false,\"messageId\":\"3EB0D1DC8FC087D327A8F3\",\"conversation\":\"Olá! Tenho interesse no apartamento, R$ 818.922 - Jardim Veraneio,  que encontrei no VivaReal: https://www.vivareal.com.br/imovel/apartamento-3-quartos-jardim-veraneio-bairros-campo-grande-com-garagem-75m2-venda-RS818922-id-2784399536/. Código da oferta: 15. Código do anúncio no VivaReal: 2784399536\",\"messageType\":\"conversation\",\"sender\":\"5519982043185@s.whatsapp.net\"}"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Consumer SDR1": {
+      "main": [
+        [
+          {
+            "node": "Normalizador1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch2": {
+      "main": [
+        [
+          {
+            "node": "Parar Resposta Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Verifica Status Block1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verifica Status Block1": {
+      "main": [
+        [
+          {
+            "node": "Agent Ativo/Inativo1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parar Resposta Agent1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow1": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent Ativo/Inativo1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields6",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizador1": {
+      "main": [
+        [
+          {
+            "node": "Switch2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields6": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields7": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Switch4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch4": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "initial customer message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "initial customer message1": {
+      "main": [
+        [
+          {
+            "node": "Messages List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch5": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Pull the Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields8",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Messages List": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pull the Messages": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields8": {
+      "main": [
+        [
+          {
+            "node": "Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis": {
+      "main": [
+        [
+          {
+            "node": "Switch5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "gvyE6UkHOI4VwHWL"
+  },
+  "versionId": "b9c43e5b-a7ef-430d-81ce-6a2e5151adad",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "af2c2dce58b7b891043a58fa084cb85b78cc3ee626cfa19de4b473f0aab51bb8"
+  },
+  "id": "QYnamqiV9RH9FcPX",
+  "tags": []
+}

@@ -1,0 +1,443 @@
+{
+  "name": "Fila Corretor #ImobiPro",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "leads",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "phone",
+              "keyValue": "={{ $json.remoteJid }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -432,
+        128
+      ],
+      "id": "e2c2200f-3cef-4223-96da-dfcd552eae74",
+      "name": "Get a row",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "55447796-bf53-4254-8b4d-eb50b3d0c749",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -288,
+        128
+      ],
+      "id": "85b915c0-d711-4c1d-becc-68a3e07e2514",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        0,
+        192
+      ],
+      "id": "28c93db8-5a70-46bd-a20a-998a22a833c0",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "queue": "corretor",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rabbitmq",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "51352741-da88-43de-87ab-4868249db3a9",
+      "name": "RabbitMQ",
+      "credentials": {
+        "rabbitmq": {
+          "id": "z1WHI6Y2yeHRCV18",
+          "name": "RabbitMQ account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "03c2123f-fd7b-4e05-964c-336cd641ef60",
+              "name": "instancia",
+              "value": "={{ $('Edit Fields2').item.json.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "8782ca1f-0856-49ab-8d69-23545598aa9d",
+              "name": "remoteJid",
+              "value": "={{ $('Edit Fields2').item.json.remoteJid }}",
+              "type": "string"
+            },
+            {
+              "id": "edcdff58-fe86-4587-90ee-9046c2183422",
+              "name": "fromMe",
+              "value": "={{ $('Edit Fields2').item.json.fromMe }}",
+              "type": "string"
+            },
+            {
+              "id": "b119d125-3be5-4da4-a442-f8ac2f002e1f",
+              "name": "conversation",
+              "value": "={{ $('Edit Fields2').item.json.conversation }}",
+              "type": "string"
+            },
+            {
+              "id": "3f1c3de4-a66f-4982-8ebc-0e13308d5959",
+              "name": "messageType",
+              "value": "={{ $('Edit Fields2').item.json.messageType }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0a23435a-6be9-459d-a29f-2d60b2c4586a",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "corretor-arthur",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -816,
+        208
+      ],
+      "id": "1fe70a54-fafc-4bfd-8020-04b978947b76",
+      "name": "Webhook",
+      "webhookId": "1959606d-1ada-413c-94fc-2e4109cb1708"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "corretor-isis",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -816,
+        32
+      ],
+      "id": "2da564a6-ce3b-4b13-af3f-e225a9332238",
+      "name": "Webhook1",
+      "webhookId": "1959606d-1ada-413c-94fc-2e4109cb1708"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9e56c0eb-0e08-45c0-a526-182ad5e315da",
+              "name": "instance",
+              "value": "={{ $json.body.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "ef35fc90-c96e-49a8-bb4f-c773346a68f3",
+              "name": "remoteJid",
+              "value": "={{ $json.body.data.key.remoteJid }}",
+              "type": "string"
+            },
+            {
+              "id": "aa56aeeb-73ab-466d-895b-bf988085b7f8",
+              "name": "conversation",
+              "value": "={{ $json.body.data.message.conversation }}",
+              "type": "string"
+            },
+            {
+              "id": "600a60f8-c371-4de2-a296-d28a71b37d81",
+              "name": "fromMe",
+              "value": "={{ $json.body.data.key.fromMe }}",
+              "type": "boolean"
+            },
+            {
+              "id": "229fb236-df44-4a7a-b0b1-99aba1768252",
+              "name": "messageType",
+              "value": "={{ $json.body.data.messageType }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -576,
+        128
+      ],
+      "id": "3477381f-f9db-4941-9aec-404ddab75750",
+      "name": "Edit Fields2"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.n8nlabz.com.br",
+            "user-agent": "axios/1.10.0",
+            "content-length": "989",
+            "accept": "application/json, text/plain, */*",
+            "accept-encoding": "gzip, compress, deflate, br",
+            "content-type": "application/json",
+            "x-forwarded-for": "85.31.230.218",
+            "x-forwarded-host": "webhook.n8nlabz.com.br",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "3271e4ed253d",
+            "x-real-ip": "85.31.230.218"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "event": "messages.upsert",
+            "instance": "isis",
+            "data": {
+              "key": {
+                "remoteJid": "5519994419319@s.whatsapp.net",
+                "fromMe": false,
+                "id": "3EB019B51369D456EABF33",
+                "senderLid": "127908991480018@lid"
+              },
+              "pushName": "N8N Labz - Fernando Riolo",
+              "status": "DELIVERY_ACK",
+              "message": {
+                "conversation": "tudo certo",
+                "messageContextInfo": {
+                  "deviceListMetadata": {
+                    "senderKeyHash": "xTJfJAf1OBehLQ==",
+                    "senderTimestamp": "1753675521",
+                    "senderAccountType": "E2EE",
+                    "receiverAccountType": "E2EE",
+                    "recipientKeyHash": "6SIQLQAx+0CVJw==",
+                    "recipientTimestamp": "1752941618"
+                  },
+                  "deviceListMetadataVersion": 2,
+                  "messageSecret": "gK6rlpynnbOqNiLznXhSyjyb3SURv7FtjGY2SYbfcmg="
+                }
+              },
+              "messageType": "conversation",
+              "messageTimestamp": 1754180754,
+              "instanceId": "d6ef1322-5441-47c3-82b5-b31a1e78c096",
+              "source": "web"
+            },
+            "destination": "https://webhook.n8nlabz.com.br/webhook/corretor-arthur",
+            "date_time": "2025-08-02T21:25:54.621Z",
+            "sender": "5511988516536@s.whatsapp.net",
+            "server_url": "https://evolabz.n8nlabz.com.br",
+            "apikey": "4C652A73CC18-4767-A01C-F2F390BDFB75"
+          },
+          "webhookUrl": "https://webhook.n8nlabz.com.br/webhook/corretor-arthur",
+          "executionMode": "production"
+        }
+      }
+    ],
+    "Webhook1": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.n8nlabz.com.br",
+            "user-agent": "axios/1.10.0",
+            "content-length": "1110",
+            "accept": "application/json, text/plain, */*",
+            "accept-encoding": "gzip, compress, deflate, br",
+            "content-type": "application/json",
+            "x-forwarded-for": "85.31.230.218",
+            "x-forwarded-host": "webhook.n8nlabz.com.br",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "3271e4ed253d",
+            "x-real-ip": "85.31.230.218"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "event": "messages.upsert",
+            "instance": "isis",
+            "data": {
+              "key": {
+                "remoteJid": "5519994419319@s.whatsapp.net",
+                "fromMe": false,
+                "id": "3EB00C307BE51AD943659A",
+                "senderLid": "127908991480018@lid"
+              },
+              "pushName": "N8N Labz - Fernando Riolo",
+              "status": "DELIVERY_ACK",
+              "message": {
+                "conversation": "ok, tudo certo",
+                "messageContextInfo": {
+                  "deviceListMetadata": {
+                    "senderKeyHash": "H0XNxZVNcINiig==",
+                    "senderTimestamp": "1755276141",
+                    "senderAccountType": "E2EE",
+                    "receiverAccountType": "E2EE",
+                    "recipientKeyHash": "6QpgWr7N2aLAqw==",
+                    "recipientTimestamp": "1755842211"
+                  },
+                  "deviceListMetadataVersion": 2,
+                  "messageSecret": "4e3s0nYn8OYDLi4BBpjegTHqONWr04xV4ULD9+DlL18=",
+                  "limitSharingV2": {
+                    "sharingLimited": false,
+                    "trigger": "UNKNOWN",
+                    "limitSharingSettingTimestamp": "0",
+                    "initiatedByMe": false
+                  }
+                }
+              },
+              "messageType": "conversation",
+              "messageTimestamp": 1756217970,
+              "instanceId": "4adc0576-95b8-4995-b8d1-4a8a259213ab",
+              "source": "web"
+            },
+            "destination": "https://webhook.n8nlabz.com.br/webhook/corretor-isis",
+            "date_time": "2025-08-26T11:19:30.916Z",
+            "sender": "5511988516536@s.whatsapp.net",
+            "server_url": "https://evolabz.n8nlabz.com.br",
+            "apikey": "6A7238EF06F1-4058-A031-7688769A42EC"
+          },
+          "webhookUrl": "https://webhook.n8nlabz.com.br/webhook/corretor-isis",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Get a row": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "RabbitMQ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Get a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3ca58b71-2992-4633-b01d-af34f06db822",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "af2c2dce58b7b891043a58fa084cb85b78cc3ee626cfa19de4b473f0aab51bb8"
+  },
+  "id": "OqdF58n0QBpTTA0j",
+  "tags": []
+}

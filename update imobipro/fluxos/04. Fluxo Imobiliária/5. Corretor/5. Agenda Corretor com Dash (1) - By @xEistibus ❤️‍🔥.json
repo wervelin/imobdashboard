@@ -1,0 +1,1745 @@
+{
+  "name": "Agenda Corretor com Dash",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agenda_corretor",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        416
+      ],
+      "id": "e6655eac-fc32-472c-91bf-d9318c5bcadf",
+      "name": "Webhook",
+      "webhookId": "fcc3834f-ebd5-414c-b8e3-85a3b6f4b16f"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.tentativa }}",
+                    "rightValue": "1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "f9955290-5af3-4867-9d57-6de9b19a9355"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Primeira Tentativa"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a2f10cc5-0cd8-4dad-ba54-31fe40c23bd9",
+                    "leftValue": "={{ $json.body.tentativa }}",
+                    "rightValue": "2",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Segunda Tentativa"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -128,
+        128
+      ],
+      "id": "4b347d7e-d544-48aa-81db-d4fa2b72cd21",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "oncall_schedules",
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        144,
+        -176
+      ],
+      "id": "ef88c22d-01f9-4080-9ee3-3c2a5e1b107a",
+      "name": "Get many rows",
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// === CONFIG ===\nconst TZ = 'America/Sao_Paulo';\nconst SLOT_MIN = 60; // duração do compromisso em minutos\n\n// === Utils de data/time ===\nfunction toSPDate(d) {\n  return new Date(new Date(d).toLocaleString('en-US', { timeZone: TZ }));\n}\n\nfunction parseDataHora(raw) {\n  if (!raw) return null;\n  if (typeof raw !== 'string') return new Date(raw);\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) {\n    return new Date(raw + 'T12:00:00-03:00');\n  }\n  return new Date(raw);\n}\n\nfunction fmtISOOffset(d) {\n  const pad = (n) => String(n).padStart(2,'0');\n  const offMin = -d.getTimezoneOffset();\n  const sign = offMin >= 0 ? '+' : '-';\n  const hh = pad(Math.floor(Math.abs(offMin)/60));\n  const mm = pad(Math.abs(offMin)%60);\n  return (\n    d.getFullYear() + '-' +\n    pad(d.getMonth()+1) + '-' +\n    pad(d.getDate()) + 'T' +\n    pad(d.getHours()) + ':' +\n    pad(d.getMinutes()) + ':' +\n    pad(d.getSeconds()) +\n    sign + hh + ':' + mm\n  );\n}\n\nfunction dayKeyJS(date) {\n  const keys = ['sun','mon','tue','wed','thu','fri','sat'];\n  return keys[ date.getDay() ];\n}\n\nfunction getWorkWindowForDay(agenda, key) {\n  const works = agenda[`${key}_works`];\n  const start = agenda[`${key}_start`];\n  const end   = agenda[`${key}_end`];\n  return { works, start, end };\n}\n\nfunction buildDateAtTime(baseLocalDate, timeHHMMSS) {\n  const [hh, mm, ss] = (timeHHMMSS || '00:00:00').split(':').map(Number);\n  const d = toSPDate(baseLocalDate);\n  d.setHours(hh, mm, (Number.isFinite(ss) ? ss : 0), 0);\n  return d;\n}\n\nfunction diaSemanaPt(date) {\n  return new Intl.DateTimeFormat('pt-BR', { weekday: 'long', timeZone: TZ }).format(date);\n}\n\nfunction timeHHMMSS(date) {\n  const pad = (n) => String(n).padStart(2, '0');\n  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;\n}\n\n// === Coleta agendas do input ===\nconst agendas = $input.all().map(i => i.json);\n\n// === Webhook data ===\nconst wb = (() => {\n  try { return $('Webhook').first().json.body || {}; } catch { return {}; }\n})();\n\nconst dataHoraStr = wb.data_e_hora;\nconst funcionarioReqRaw = wb.funcionario;\nconst dataOriginalStr = wb.data_original || null;\n\nconst assignedFromItemRaw = $json?.assigned_user_id;\n\nconst funcionarioId = funcionarioReqRaw ? String(funcionarioReqRaw).trim() : null;\nconst assignedFromItem = assignedFromItemRaw ? String(assignedFromItemRaw).trim() : null;\n\n// === Seleção do corretor alvo (STRICT) ===\nlet alvo = null;\n\nif (funcionarioId) {\n  const funcionarioLc = funcionarioId.toLowerCase();\n  alvo =\n    agendas.find(a => a.assigned_user_id === funcionarioId) ||\n    agendas.find(a => a.calendar_id === funcionarioId) ||\n    agendas.find(a => (a.calendar_name || '').toLowerCase() === funcionarioLc) ||\n    null;\n\n  if (!alvo) {\n    return [{\n      json: {\n        ok: false,\n        motivo: 'Corretor solicitado (Webhook.body.funcionario) não encontrado entre as agendas carregadas.',\n        solicitado: funcionarioId\n      }\n    }];\n  }\n} else if (assignedFromItem) {\n  alvo = agendas.find(a => a.assigned_user_id === assignedFromItem) || null;\n  if (!alvo) {\n    return [{\n      json: {\n        ok: false,\n        motivo: 'assigned_user_id do item não corresponde a nenhuma agenda.',\n        solicitado: assignedFromItem\n      }\n    }];\n  }\n} else if (agendas.length === 1) {\n  alvo = agendas[0];\n} else {\n  return [{\n    json: {\n      ok: false,\n      motivo: 'Ambiguidade: múltiplas agendas e nenhum identificador (funcionario/assigned_user_id) fornecido.'\n    }\n  }];\n}\n\n// === Parse do horário solicitado ===\nconst requestedStartRaw = parseDataHora(dataHoraStr);\nif (!requestedStartRaw || isNaN(requestedStartRaw.getTime())) {\n  return [{\n    json: {\n      ok: false,\n      motivo: 'data_e_hora inválida ou ausente no Webhook.',\n      recebido: dataHoraStr ?? null\n    }\n  }];\n}\n\nconst requestedStart = toSPDate(requestedStartRaw);\nconst requestedEnd   = new Date(requestedStart.getTime() + SLOT_MIN*60000);\n\n// === Data original com hora ===\nlet dataOriginalObj = null;\nif (dataOriginalStr) {\n  const dataOriginalStart = toSPDate(parseDataHora(dataOriginalStr));\n  const dataOriginalEnd   = new Date(dataOriginalStart.getTime() + SLOT_MIN*60000);\n  dataOriginalObj = {\n    data_inicio_original: fmtISOOffset(dataOriginalStart),\n    data_final_original: fmtISOOffset(dataOriginalEnd)\n  };\n}\n\n// === Janela de trabalho do dia ===\nconst dkey = dayKeyJS(requestedStart);\nconst { works, start, end } = getWorkWindowForDay(alvo, dkey);\n\nif (!works) {\n  return [{\n    json: {\n      ok: false,\n      disponivel: false,\n      motivo: 'Fora do dia/escala: não trabalha neste dia.',\n      corretor: {\n        assigned_user_id: alvo.assigned_user_id,\n        calendar_name: alvo.calendar_name,\n        calendar_id: alvo.calendar_id,\n      },\n      solicitado: {\n        inicio: fmtISOOffset(requestedStart),\n        fim: fmtISOOffset(requestedEnd),\n        slot_min: SLOT_MIN\n      },\n      expediente: { trabalha: works, inicio: start, fim: end },\n      dia_semana: diaSemanaPt(requestedStart),\n      horario_solicitado: timeHHMMSS(requestedStart),\n      data_original: dataOriginalObj\n    }\n  }];\n}\n\nconst expIni = buildDateAtTime(requestedStart, start);\nconst expFim = buildDateAtTime(requestedStart, end);\n\nconst dentroExpediente =\n  requestedStart.getTime() >= expIni.getTime() &&\n  requestedEnd.getTime()   <= expFim.getTime();\n\nconst disponivel = dentroExpediente;\n\nreturn [{\n  json: {\n    ok: true,\n    disponivel,\n    motivo: disponivel ? 'Dentro do expediente.' : 'Fora do expediente para o slot solicitado.',\n    corretor: {\n      assigned_user_id: alvo.assigned_user_id,\n      calendar_name: alvo.calendar_name,\n      calendar_id: alvo.calendar_id,\n    },\n    solicitado: {\n      inicio: fmtISOOffset(requestedStart),\n      fim: fmtISOOffset(requestedEnd),\n      slot_min: SLOT_MIN\n    },\n    expediente: {\n      trabalha: works,\n      inicio: start,\n      fim: end,\n      inicio_local: fmtISOOffset(expIni),\n      fim_local: fmtISOOffset(expFim)\n    },\n    dia_semana: diaSemanaPt(requestedStart),\n    horario_solicitado: timeHHMMSS(requestedStart),\n    data_original: dataOriginalObj\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        -176
+      ],
+      "id": "4f9201de-ef40-4350-9e9c-16317fb445b3",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "78b78643-2182-4e78-be7d-1d1266563c88",
+                    "leftValue": "={{ $json.disponivel }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Com Disponibilidade"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.disponivel }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "false",
+                      "singleValue": true
+                    },
+                    "id": "d5223e95-0edc-4f2b-9195-4cb550b318ae"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Sem Disponibilidade"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        560,
+        -176
+      ],
+      "id": "7a3cd90a-b64c-4e9e-a837-c4c709dc2ca6",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "resource": "calendar",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.corretor.calendar_id }}",
+          "mode": "id"
+        },
+        "timeMin": "={{ $json.solicitado.inicio }}",
+        "timeMax": "={{ $json.solicitado.fim }}",
+        "options": {
+          "outputFormat": "availability"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        864,
+        -432
+      ],
+      "id": "91d11c61-6719-4188-a2d1-e5e459688d79",
+      "name": "Get availability in a calendar7",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "fmmZNYskUakD2HmE",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.available }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "8a39e39b-b130-4166-b139-cf62a6784019"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Disponível Agenda"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "5f5b5fb0-787a-4244-9dd4-cefc972e050c",
+                    "leftValue": "={{ $json.available }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "false",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Indisponível Agenda"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1056,
+        -432
+      ],
+      "id": "de2887c3-4bcc-47d0-91f2-c15b5ce96cd1",
+      "name": "Switch2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bba9bc8d-2ba8-44dc-ac1a-ff8901d1571b",
+              "name": "response",
+              "value": "=Infelizmente não tenho esse horário disponível, na {{ $('Code').item.json.dia_semana }} posso verificar disponibilidade entre {{ $('Code').item.json.expediente.inicio }} e {{ $('Code').item.json.expediente.fim }}. Caso você realmente queira para as {{ $('Code').item.json.horario_solicitado }}, posso verificar com algum outro corretor a disponibilidade, o que deseja? ",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        -160
+      ],
+      "id": "7009e2b4-1317-41ae-bd5b-3810fdede56a",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        976,
+        -160
+      ],
+      "id": "a0787d9b-e7b2-4d1a-82df-6f90daeab8b8",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Code').item.json.corretor.calendar_id }}",
+          "mode": "id",
+          "__regex": "(^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*)"
+        },
+        "returnAll": true,
+        "timeMin": "={{ $('Code').item.json.data_original.data_inicio_original }}",
+        "timeMax": "={{ $('Code').item.json.data_original.data_final_original }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1264,
+        -512
+      ],
+      "id": "98d209c1-c71e-4965-ab21-5d952a6244c6",
+      "name": "Get many events",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "fmmZNYskUakD2HmE",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Code').item.json.corretor.calendar_id }}",
+          "mode": "id"
+        },
+        "eventId": "={{ $json.id }}",
+        "updateFields": {
+          "end": "={{ $('Code').item.json.solicitado.fim }}",
+          "start": "={{ $('Code').item.json.solicitado.inicio }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1440,
+        -512
+      ],
+      "id": "d582132a-1787-4ddd-82f5-6445845f306e",
+      "name": "Update an event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "fmmZNYskUakD2HmE",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fc233c45-5099-492d-ac52-4aad48853709",
+              "name": "response",
+              "value": "Perefito, acabei de reagendar! se precisar de algo é só me dar um toque. ",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1600,
+        -512
+      ],
+      "id": "a99989aa-8797-4285-8012-fd8f13c1813e",
+      "name": "Edit Fields7"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1776,
+        -512
+      ],
+      "id": "5ac6b55d-7548-4f42-a890-a2ddffefd917",
+      "name": "Respond to Webhook4"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "leads",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook').last().json.body.sessionId }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $json.resposta }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2128,
+        -512
+      ],
+      "id": "7ecd9093-5292-4728-8b55-81ee6c21a561",
+      "name": "Update a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Update an event').first().json;\n\n// === Utils para formatar data em PT-BR ===\nfunction formatarDataHora(dateStr) {\n  const data = new Date(dateStr);\n  return data.toLocaleDateString('pt-BR', {\n    day: '2-digit',\n    month: 'long',\n    year: 'numeric',\n    timeZone: 'America/Sao_Paulo'\n  }) + ' às ' + data.toLocaleTimeString('pt-BR', {\n    hour: '2-digit',\n    minute: '2-digit',\n    timeZone: 'America/Sao_Paulo'\n  });\n}\n\n// === Pega o número do imóvel do summary ===\nfunction extrairImovel(summary) {\n  const match = summary.match(/\\d+/);\n  return match ? match[0] : null;\n}\n\nconst dataFormatada = formatarDataHora(payload.start.dateTime);\nconst imovel = extrairImovel(payload.summary);\n\nreturn [\n  {\n    json: {\n      resposta: `Visita agendada para ${dataFormatada} no imóvel ${imovel}`\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        -512
+      ],
+      "id": "02a28230-bfb4-4916-9ab1-125df638122e",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// === CONFIG ===\nconst TZ = 'America/Sao_Paulo';\nconst OFFSET = '-03:00';\n\n// === Utils ===\nfunction toSP(date) {\n  return new Date(new Date(date).toLocaleString('en-US', { timeZone: TZ }));\n}\nfunction getWeekParts(row, d) {\n  const map = ['sun','mon','tue','wed','thu','fri','sat'];\n  const key = map[d.getDay()];\n  return {\n    works: row[`${key}_works`],\n    start: row[`${key}_start`],\n    end:   row[`${key}_end`],\n    key\n  };\n}\nfunction makeLocalISO(date) {\n  const parts = new Intl.DateTimeFormat('en-US', {\n    timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit',\n    hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false\n  }).formatToParts(date).reduce((a,p)=>(a[p.type]=p.value,a),{});\n  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}${OFFSET}`;\n}\nfunction withTime(date, timeHHMMSS) {\n  const [hh, mm, ss] = (timeHHMMSS || '00:00:00').split(':').map(Number);\n  const d = toSP(date);\n  d.setHours(hh, mm || 0, ss || 0, 0);\n  return d;\n}\nfunction inside(aStart, aEnd, wStart, wEnd) {\n  return aStart >= wStart && aEnd <= wEnd;\n}\nfunction labelRange(s, e) {\n  const fmt = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour:'2-digit', minute:'2-digit' });\n  return `${fmt.format(s)} - ${fmt.format(e)}`;\n}\n\n// === Inputs ===\nconst webhook = ($items('Webhook', 0, 0)[0] ?? {}).json;\nconst funcionario = webhook?.body?.funcionario;\nconst dataEntradaStr = webhook?.body?.data_e_hora;\n\nconst rows = $items('Get many rows', 0, 0).map(i => i.json);\n\nif (!funcionario || !dataEntradaStr) return [];\n\nconst row = rows.find(r => (r.assigned_user_id ?? r.corretor?.assigned_user_id) === funcionario);\nif (!row) return [];\n\n// Data base\nconst dataEntrada = toSP(dataEntradaStr);\nconst diaBase = toSP(dataEntradaStr);\ndiaBase.setHours(12,0,0,0);\n\n// Plantão\nlet plantaoStart, plantaoEnd;\nif (row.start && row.end) {\n  plantaoStart = toSP(row.start);\n  plantaoEnd   = toSP(row.end);\n} else {\n  const { works, start, end } = getWeekParts(row, dataEntrada);\n  if (!works || !start || !end) return [];\n  plantaoStart = withTime(diaBase, start);\n  plantaoEnd   = withTime(diaBase, end);\n}\n\n// Slots -2h, -1h, +1h, +2h\nconst offsets = [-2, -1, +1, +2];\nconst candidatos = offsets.map(off => {\n  const s = new Date(dataEntrada);\n  s.setHours(s.getHours() + off, 0, 0, 0);\n  const e = new Date(s); e.setHours(e.getHours() + 1);\n  return { s, e };\n});\n\n// Filtra dentro do plantão\nconst validos = candidatos.filter(({s,e}) => inside(s,e,plantaoStart,plantaoEnd));\nvalidos.sort((a,b) => a.s - b.s);\n\n// === Saída: cada opção é 1 item ===\nreturn validos.map(({s,e}) => ({\n  json: {\n    calendar_id: row.calendar_id,\n    inicio: makeLocalISO(s),\n    fim: makeLocalISO(e),\n    label: labelRange(s,e)\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        -336
+      ],
+      "id": "481dfac8-e3ad-45ad-a33e-85d5ae650453",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1472,
+        -224
+      ],
+      "id": "35de5297-8979-4a53-a92a-09ad31ef19f8",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "resource": "calendar",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendar_id }}",
+          "mode": "id"
+        },
+        "timeMin": "={{ $json.inicio }}",
+        "timeMax": "={{ $json.fim }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1680,
+        -144
+      ],
+      "id": "4787a4c5-5858-4446-bde2-cb50efc26022",
+      "name": "Get availability in a calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "fmmZNYskUakD2HmE",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8fa27357-7535-4096-96d1-48e8a9122399",
+              "name": "={{ $('Loop Over Items').item.json.label }}",
+              "value": "={{ $json.available }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1856,
+        -144
+      ],
+      "id": "31c5c900-f04f-468f-862a-a03ebe3d3256",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lê todos os itens de entrada\nconst items = $input.all();\n\n// Extrai os horários disponíveis marcados como \"true\" (string ou boolean)\nfunction coletarHorariosDisponiveis(items) {\n  const slots = [];\n\n  // Caso 1: veio um único item cujo .json é um array de objetos\n  if (items.length === 1 && Array.isArray(items[0].json)) {\n    for (const obj of items[0].json) {\n      const [slot, val] = Object.entries(obj)[0] || [];\n      if (val === true || val === \"true\") slots.push(slot);\n    }\n    return slots;\n  }\n\n  // Caso 2: veio como vários itens, cada um com um objeto { \"13:00 - 14:00\": \"true\" }\n  for (const it of items) {\n    const entries = Object.entries(it.json || {});\n    if (entries.length === 1) {\n      const [slot, val] = entries[0];\n      if (val === true || val === \"true\") slots.push(slot);\n    }\n  }\n\n  return slots;\n}\n\nconst horariosDisponiveis = coletarHorariosDisponiveis(items);\n\n// Tenta pegar o horário solicitado de outro nó (se existir)\nlet horarioSolicitado = null;\ntry {\n  horarioSolicitado = $('Code').item.json.horario_solicitado || null;\n} catch (e) {\n  horarioSolicitado = null;\n}\n\n// Monta a mensagem\nconst prefixo = horarioSolicitado\n  ? `Infelizmente no horário ${horarioSolicitado} não tenho disponibilidade.`\n  : `Infelizmente não tenho disponibilidade exatamente no horário solicitado.`;\n\nlet mensagem;\nif (horariosDisponiveis.length > 0) {\n  const lista = horariosDisponiveis.map(h => `• ${h}`).join('\\n');\n  mensagem = `${prefixo}\\n\\nPorém tenho disponibilidade nestes horários:\\n${lista}\\n\\nMe diga qual você prefere que eu já agendo pra você.`;\n} else {\n  mensagem = `${prefixo}\\n\\nNo momento não há outras opções disponíveis. Quer que eu verifique outros dias ou turnos?`;\n}\n\n// Retorna um único item com a mensagem e a lista de horários\nreturn [\n  {\n    json: {\n      mensagem,\n      horarios_disponiveis: horariosDisponiveis\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        -304
+      ],
+      "id": "7e506347-6a46-4bb1-8772-598de547c983",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1856,
+        -304
+      ],
+      "id": "85f812dc-d071-459c-9ad4-63a3eead9b5b",
+      "name": "Respond to Webhook5"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.funcao }}",
+                    "rightValue": "reagendar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "f7bbd74a-d613-46c4-86af-3e8023c33d06"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Reagendar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "36ef8c29-c613-4be4-a4c5-78bffd8714b7",
+                    "leftValue": "={{ $json.body.funcao }}",
+                    "rightValue": "cancelar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "=Cancelar"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -480,
+        416
+      ],
+      "id": "69eec3cf-6ce6-4c5a-b405-94bbd775e3fe",
+      "name": "Switch3"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "oncall_schedules",
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        160,
+        144
+      ],
+      "id": "ee07f168-9ddb-45c4-ac74-cfd922165f78",
+      "name": "Get many rows1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// === CONFIG ===\nconst SLOT_MIN = 60;            // duração do slot em minutos\nconst FIXED_OFFSET = '-03:00';  // SP (sem horário de verão)\n\n// === HELPERS ===\nfunction pad2(n){ return String(n).padStart(2,'0'); }\n\nfunction parseLocalSP(datetimeStr){\n  if (!datetimeStr || typeof datetimeStr !== 'string') return null;\n  const s = datetimeStr.replace(/([+-]\\d{2}:\\d{2}|Z)$/,''); // remove TZ/Z\n  const [datePart, timePartRaw] = s.split('T');\n  if (!datePart || !timePartRaw) return null;\n  const timePart = timePartRaw.length === 5 ? timePartRaw + ':00' : timePartRaw;\n  const [Y, M, D] = datePart.split('-').map(Number);\n  const [h, m, sec] = timePart.split(':').map(Number);\n\n  const dow = new Date(Date.UTC(Y, (M-1), D)).getUTCDay(); // 0 dom ... 6 sáb\n  const minutes = (h*60) + m;\n\n  return { Y, M, D, h, m, sec: (sec||0), dow, minutes };\n}\n\nfunction addMinutesToHM(h, m, delta){\n  const total = h*60 + m + delta;\n  return { h: Math.floor(total/60), m: total % 60 };\n}\n\nfunction hmToMinutes(hms){\n  if (!hms) return null;\n  const [h,m] = hms.split(':').map(Number);\n  return (h||0)*60 + (m||0);\n}\n\nfunction mapDay(dow){\n  return [\n    { works:'sun_works', start:'sun_start', end:'sun_end' },\n    { works:'mon_works', start:'mon_start', end:'mon_end' },\n    { works:'tue_works', start:'tue_start', end:'tue_end' },\n    { works:'wed_works', start:'wed_start', end:'wed_end' },\n    { works:'thu_works', start:'thu_start', end:'thu_end' },\n    { works:'fri_works', start:'fri_start', end:'fri_end' },\n    { works:'sat_works', start:'sat_start', end:'sat_end' },\n  ][dow];\n}\n\nfunction buildISO(Y,M,D,h,m,sec=0){\n  return `${Y}-${pad2(M)}-${pad2(D)}T${pad2(h)}:${pad2(m)}:${pad2(sec)}${FIXED_OFFSET}`;\n}\n\nfunction shuffle(arr){\n  return arr\n    .map(v => ({ v, r: Math.random() }))\n    .sort((a,b) => a.r - b.r)\n    .map(o => o.v);\n}\n\n// === CAPTURA DE AGENDAS ===\nlet agendas = [];\nif (Array.isArray($json)) {\n  agendas = $json;\n} else if (Array.isArray($json.agendas)) {\n  agendas = $json.agendas;\n} else {\n  const all = $input.all().map(i => i.json);\n  if (all.length && all.every(a => a && (a.calendar_id || a.calendar_name))) {\n    agendas = all;\n  } else if ($json && $json.calendar_id) {\n    agendas = [$json];\n  } else {\n    const maybeArray = Object.values($json || {});\n    if (maybeArray.length && maybeArray.every(a => a && a.calendar_id)) {\n      agendas = maybeArray;\n    }\n  }\n}\n\n// === ENTRADAS AUXILIARES ===\nconst solicitadoRaw = $('Webhook').item.json.body?.data_e_hora;\nconst funcionarioIdFromWebhook = $('Webhook').item.json.body?.funcionario; // pode estar aqui\nconst idFromInput = $input.first()?.json?.assigned_user_id || null;         // fallback/forçado pelo usuário\nconst currentAssignedFromItem = $json?.assigned_user_id;\n\n// Define o ID do corretor atual priorizando Webhook; se não tiver, usa $input.first().json.assigned_user_id\nconst funcionarioId = funcionarioIdFromWebhook || idFromInput || null;\n\n// Parse do horário solicitado (local SP)\nconst parsed = parseLocalSP(solicitadoRaw);\nif (!parsed){\n  return [{ json: { ok:false, motivo:'data_e_hora inválido/ausente', recebido: solicitadoRaw }}];\n}\n\nconst dm = mapDay(parsed.dow);\nif (!dm){\n  return [{ json: { ok:false, motivo:'Dia da semana inválido', data_e_hora: solicitadoRaw }}];\n}\n\nconst startMinutes = parsed.minutes;\nconst endMinutes   = startMinutes + SLOT_MIN;\n\n// Monta início/fim ISO do \"horário solicitado\"\nconst currentInicioISO = buildISO(parsed.Y, parsed.M, parsed.D, parsed.h, parsed.m, parsed.sec);\nconst currentFimHM = addMinutesToHM(parsed.h, parsed.m, SLOT_MIN);\nconst currentFimISO = buildISO(parsed.Y, parsed.M, parsed.D, currentFimHM.h, currentFimHM.m, parsed.sec);\n\n// === LOCALIZA CORRETOR ATUAL (SEM VALIDAR EXPEDIENTE) ===\nlet atualCalendarId = null;\nlet atualCalendarName = null;\nlet atualAssignedId = funcionarioId || idFromInput || null;\n\nif (atualAssignedId) {\n  const atual = (agendas || []).find(a => a.assigned_user_id === atualAssignedId);\n  if (atual) {\n    atualCalendarId = atual.calendar_id || null;\n    atualCalendarName = atual.calendar_name || null;\n  }\n}\n\n// === MONTA LISTA DE ALTERNATIVOS VÁLIDOS (DENTRO DO EXPEDIENTE) ===\nlet alternativas = [];\nfor (const cal of (agendas || [])) {\n  if (!cal) continue;\n\n  // Exclui o próprio corretor atual e (opcionalmente) o assigned do item atual\n  if (atualAssignedId && cal.assigned_user_id === atualAssignedId) continue;\n  if (currentAssignedFromItem && cal.assigned_user_id === currentAssignedFromItem) continue;\n\n  // Trabalha nesse dia?\n  if (!cal[dm.works]) continue;\n\n  const workStart = hmToMinutes(cal[dm.start]);\n  const workEnd   = hmToMinutes(cal[dm.end]);\n  if (workStart == null || workEnd == null) continue;\n\n  // Cabe o slot dentro do expediente?\n  const fits = startMinutes >= workStart && endMinutes <= workEnd;\n  if (!fits) continue;\n\n  // ID do alternativo: usa o da agenda; se não houver, usa o do $input.first()\n  const altAssignedId = cal.assigned_user_id || idFromInput || null;\n\n  alternativas.push({\n    assigned_user_id: altAssignedId,\n    calendar_id: cal.calendar_id,\n    calendar_name: cal.calendar_name,\n    inicio: currentInicioISO,\n    fim: currentFimISO,\n  });\n}\n\n// Randomiza ordem dos alternativos\nalternativas = shuffle(alternativas);\n\n// === CONSTRÓI SAÍDA: 1 ITEM POR ALTERNATIVO, INCLUINDO DADOS DO CORRETOR ATUAL ===\nconst out = alternativas.map(alt => ({\n  json: {\n    // Corretor atual\n    assigned_user_id_corretor_atual: atualAssignedId,\n    calendar_id_corretor_atual: atualCalendarId,\n    calendar_name_corretor_atual: atualCalendarName,\n    inicio_corretor_atual: currentInicioISO,\n    fim_corretor_atual: currentFimISO,\n\n    // Corretor alternativo\n    assigned_user_id_corretor_alternativo: alt.assigned_user_id,\n    calendar_id_corretor_alternativo: alt.calendar_id,\n    calendar_name_corretor_alternativo: alt.calendar_name,\n    inicio_corretor_alternativo: alt.inicio,\n    fim_corretor_alternativo: alt.fim,\n  }\n}));\n\nif (!out.length){\n  return [{\n    json: {\n      ok:false,\n      motivo:'Nenhum corretor alternativo disponível nesse horário dentro do expediente.',\n      data_e_hora: solicitadoRaw,\n      assigned_user_id_corretor_atual: atualAssignedId,\n      calendar_id_corretor_atual: atualCalendarId,\n      calendar_name_corretor_atual: atualCalendarName,\n      inicio_corretor_atual: currentInicioISO,\n      fim_corretor_atual: currentFimISO\n    }\n  }];\n}\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        144
+      ],
+      "id": "e125c610-6543-46f7-8743-412b744bbbdb",
+      "name": "Code4"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        544,
+        144
+      ],
+      "id": "bb3c3acc-2dc2-46cd-b08c-ba5087628461",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "resource": "calendar",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendar_id_corretor_alternativo }}",
+          "mode": "id"
+        },
+        "timeMin": "={{ $json.inicio_corretor_alternativo }}",
+        "timeMax": "={{ $json.fim_corretor_alternativo }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        752,
+        464
+      ],
+      "id": "7406b5a4-2369-472e-90ea-726b8c9135df",
+      "name": "Get availability in a calendar1",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "fmmZNYskUakD2HmE",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b6514acb-9fe9-445f-afda-8ece09e50b57",
+              "name": "={{ $('Loop Over Items1').item.json.calendar_name }}",
+              "value": "={{ $json.available }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        912,
+        464
+      ],
+      "id": "f7e160ca-4b20-49d1-8c26-815a822c594b",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2a3c7b86-f669-4191-a9aa-006ce78fc6af",
+              "leftValue": "={{ $('Get availability in a calendar1').item.json.available }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1072,
+        464
+      ],
+      "id": "96be353e-a9f1-4f00-ba8c-2b0927405fc7",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ac0f3668-8cec-4fbe-8cbd-efbb3eed830f",
+              "name": "response",
+              "value": "=Perefito [nome], agora o {{ $('Loop Over Items1').item.json.calendar_name_corretor_alternativo }} será o seu corretor, tudo bem? Ele vai entrar em contato com você em instantes.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2096,
+        448
+      ],
+      "id": "cd763c5d-9333-4d31-8a01-a20bee3cb8bc",
+      "name": "Edit Fields10"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2288,
+        448
+      ],
+      "id": "be30ea78-acac-487d-9c6c-f2c42b8f6bf5",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Loop Over Items1').item.json.calendar_id_corretor_atual }}",
+          "mode": "id"
+        },
+        "limit": 1,
+        "timeMin": "={{ $('Loop Over Items1').item.json.inicio_corretor_atual }}",
+        "timeMax": "={{ $('Loop Over Items1').item.json.fim_corretor_atual }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1328,
+        448
+      ],
+      "id": "e2eba1a4-2537-4416-afca-e53a6fb43d5a",
+      "name": "Get many events1",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "fmmZNYskUakD2HmE",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Loop Over Items1').item.json.calendar_id_corretor_atual }}",
+          "mode": "id"
+        },
+        "eventId": "={{ $json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1504,
+        448
+      ],
+      "id": "62172107-c13c-4451-b5b8-97d46ec70894",
+      "name": "Delete an event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "fmmZNYskUakD2HmE",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Loop Over Items1').item.json.calendar_id_corretor_alternativo }}",
+          "mode": "id"
+        },
+        "start": "={{ $('Loop Over Items1').item.json.inicio_corretor_alternativo }}",
+        "end": "={{ $('Loop Over Items1').item.json.fim_corretor_alternativo }}",
+        "additionalFields": {
+          "attendees": [
+            "={{ $('Get many events1').item.json.attendees[0].email }}"
+          ],
+          "description": "={{ $('Get many events1').item.json.description }}",
+          "location": "={{ $('Get many events1').item.json.location }}",
+          "summary": "={{ $('Get many events1').item.json.summary }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1680,
+        448
+      ],
+      "id": "539823dc-c56f-44f4-aa17-cf719700829d",
+      "name": "Create an event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "fmmZNYskUakD2HmE",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "leads",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook').last().json.body.sessionId }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "id_corretor_responsavel",
+              "fieldValue": "={{ $('Loop Over Items1').item.json.assigned_user_id_corretor_alternativo }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1888,
+        448
+      ],
+      "id": "9d57f418-59c4-4eb5-b120-83f6aeca0b57",
+      "name": "Update a row1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// === CONFIG ===\nconst TZ = 'America/Sao_Paulo';\nconst OFFSET = '-03:00';\n\n// === Utils ===\nfunction toSP(date) {\n  return new Date(new Date(date).toLocaleString('en-US', { timeZone: TZ }));\n}\nfunction getWeekParts(row, d) {\n  const map = ['sun','mon','tue','wed','thu','fri','sat'];\n  const key = map[d.getDay()];\n  return {\n    works: row[`${key}_works`],\n    start: row[`${key}_start`],\n    end:   row[`${key}_end`],\n    key\n  };\n}\nfunction makeLocalISO(date) {\n  const parts = new Intl.DateTimeFormat('en-US', {\n    timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit',\n    hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false\n  }).formatToParts(date).reduce((a,p)=>(a[p.type]=p.value,a),{});\n  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}${OFFSET}`;\n}\nfunction withTime(date, timeHHMMSS) {\n  const [hh, mm, ss] = (timeHHMMSS || '00:00:00').split(':').map(Number);\n  const d = toSP(date);\n  d.setHours(hh, mm || 0, ss || 0, 0);\n  return d;\n}\nfunction inside(aStart, aEnd, wStart, wEnd) {\n  return aStart >= wStart && aEnd <= wEnd;\n}\nfunction labelRange(s, e) {\n  const fmt = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour:'2-digit', minute:'2-digit' });\n  return `${fmt.format(s)} - ${fmt.format(e)}`;\n}\n\n// === Inputs ===\nconst webhook = ($items('Webhook', 0, 0)[0] ?? {}).json;\nconst funcionario = webhook?.body?.funcionario;\nconst dataEntradaStr = webhook?.body?.data_e_hora;\n\nconst rows = $items('Get many rows1', 0, 0).map(i => i.json);\n\nif (!funcionario || !dataEntradaStr) return [];\n\nconst row = rows.find(r => (r.assigned_user_id ?? r.corretor?.assigned_user_id) === funcionario);\nif (!row) return [];\n\n// Data base\nconst dataEntrada = toSP(dataEntradaStr);\nconst diaBase = toSP(dataEntradaStr);\ndiaBase.setHours(12,0,0,0);\n\n// Plantão\nlet plantaoStart, plantaoEnd;\nif (row.start && row.end) {\n  plantaoStart = toSP(row.start);\n  plantaoEnd   = toSP(row.end);\n} else {\n  const { works, start, end } = getWeekParts(row, dataEntrada);\n  if (!works || !start || !end) return [];\n  plantaoStart = withTime(diaBase, start);\n  plantaoEnd   = withTime(diaBase, end);\n}\n\n// Slots -2h, -1h, +1h, +2h\nconst offsets = [-2, -1, +1, +2];\nconst candidatos = offsets.map(off => {\n  const s = new Date(dataEntrada);\n  s.setHours(s.getHours() + off, 0, 0, 0);\n  const e = new Date(s); e.setHours(e.getHours() + 1);\n  return { s, e };\n});\n\n// Filtra dentro do plantão\nconst validos = candidatos.filter(({s,e}) => inside(s,e,plantaoStart,plantaoEnd));\nvalidos.sort((a,b) => a.s - b.s);\n\n// === Saída: cada opção é 1 item ===\nreturn validos.map(({s,e}) => ({\n  json: {\n    calendar_id: row.calendar_id,\n    inicio: makeLocalISO(s),\n    fim: makeLocalISO(e),\n    label: labelRange(s,e)\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        32
+      ],
+      "id": "bb5a502f-f781-4944-bdcc-5dcc25c23526",
+      "name": "Code5"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1024,
+        144
+      ],
+      "id": "2b39f3b5-ebc5-4a91-b0b6-abe9e144fbe2",
+      "name": "Loop Over Items2"
+    },
+    {
+      "parameters": {
+        "resource": "calendar",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendar_id }}",
+          "mode": "id"
+        },
+        "timeMin": "={{ $json.inicio }}",
+        "timeMax": "={{ $json.fim }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1232,
+        224
+      ],
+      "id": "99f3055f-206a-4b39-80cc-f70ada96a2e1",
+      "name": "Get availability in a calendar2",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "fmmZNYskUakD2HmE",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8fa27357-7535-4096-96d1-48e8a9122399",
+              "name": "={{ $('Loop Over Items2').item.json.label }}",
+              "value": "={{ $json.available }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1408,
+        224
+      ],
+      "id": "2345c397-e0ba-40bf-9bbe-0542f9f8704e",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lê todos os itens de entrada\nconst items = $input.all();\n\n// Extrai os horários disponíveis marcados como \"true\" (string ou boolean)\nfunction coletarHorariosDisponiveis(items) {\n  const slots = [];\n\n  // Caso 1: veio um único item cujo .json é um array de objetos\n  if (items.length === 1 && Array.isArray(items[0].json)) {\n    for (const obj of items[0].json) {\n      const [slot, val] = Object.entries(obj)[0] || [];\n      if (val === true || val === \"true\") slots.push(slot);\n    }\n    return slots;\n  }\n\n  // Caso 2: veio como vários itens, cada um com um objeto { \"13:00 - 14:00\": \"true\" }\n  for (const it of items) {\n    const entries = Object.entries(it.json || {});\n    if (entries.length === 1) {\n      const [slot, val] = entries[0];\n      if (val === true || val === \"true\") slots.push(slot);\n    }\n  }\n\n  return slots;\n}\n\nconst horariosDisponiveis = coletarHorariosDisponiveis(items);\n\n// Tenta pegar o horário solicitado de outro nó (se existir)\nlet horarioSolicitado = null;\ntry {\n  horarioSolicitado = $('Code').item.json.horario_solicitado || null;\n} catch (e) {\n  horarioSolicitado = null;\n}\n\n// Monta a mensagem\nconst prefixo = horarioSolicitado\n  ? `Infelizmente no horário ${horarioSolicitado} não tenho disponibilidade.`\n  : `Infelizmente não temos disponibilidade exatamente no horário solicitado.`;\n\nlet mensagem;\nif (horariosDisponiveis.length > 0) {\n  const lista = horariosDisponiveis.map(h => `• ${h}`).join('\\n');\n  mensagem = `${prefixo}\\n\\nPorém tenho disponibilidade nestes horários:\\n${lista}\\n\\nMe diga qual você prefere que eu já agendo pra você.`;\n} else {\n  mensagem = `${prefixo}\\n\\nNo momento não há outras opções disponíveis. Quer que eu verifique outros dias ou turnos?`;\n}\n\n// Retorna um único item com a mensagem e a lista de horários\nreturn [\n  {\n    json: {\n      mensagem,\n      horarios_disponiveis: horariosDisponiveis\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        64
+      ],
+      "id": "2a135ce4-45ba-4bbf-85c6-b22586d9ed5c",
+      "name": "Code6"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1408,
+        64
+      ],
+      "id": "4d72a02b-e786-4171-994f-8e9ccdc3d2ce",
+      "name": "Respond to Webhook6"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Get a row1').item.json.calendar_id }}",
+          "mode": "id"
+        },
+        "limit": 1,
+        "timeMin": "={{ $json.inicio }}",
+        "timeMax": "={{ $json.fim }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        464,
+        752
+      ],
+      "id": "3e8d16fb-b0c5-482f-a4cd-d55a045aa171",
+      "name": "Get many events2",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "fmmZNYskUakD2HmE",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "leads",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.body.sessionId }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        752
+      ],
+      "id": "091b352b-124c-4674-83a0-4467fcc412f5",
+      "name": "Get a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "oncall_schedules",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "assigned_user_id",
+              "keyValue": "={{ $json.id_corretor_responsavel }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        64,
+        752
+      ],
+      "id": "a0d6fcfa-1cf3-4569-b62b-bcd3c9f1f9a8",
+      "name": "Get a row1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "av2Qr9qRpTTUjnEv",
+          "name": "Imobiliaria ImobiPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// === Entrada ===\nconst dataEntrada = $('Webhook').first().json.body.data_e_hora;\n\n// Converte para Date\nconst dateObj = new Date(dataEntrada);\n\n// Função para formatar no padrão YYYY-MM-DDTHH:mm:ss-03:00\nfunction formatISO(date) {\n  const ano = date.getFullYear();\n  const mes = String(date.getMonth() + 1).padStart(2, '0');\n  const dia = String(date.getDate()).padStart(2, '0');\n  const hora = String(date.getHours()).padStart(2, '0');\n  const minuto = String(date.getMinutes()).padStart(2, '0');\n  const segundo = String(date.getSeconds()).padStart(2, '0');\n  return `${ano}-${mes}-${dia}T${hora}:${minuto}:${segundo}-03:00`;\n}\n\n// Data inicial (igual ao webhook)\nconst inicio = formatISO(dateObj);\n\n// Data final (soma 1 hora, sem mexer no fuso)\nconst fimDate = new Date(dateObj.getTime() + 60 * 60 * 1000);\nconst fim = formatISO(fimDate);\n\n// === Retorno ===\nreturn [{\n  json: {\n    inicio,\n    fim\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        752
+      ],
+      "id": "34d4ef13-a573-4516-b279-28a443469bfc",
+      "name": "Code7"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Get a row1').item.json.calendar_id }}",
+          "mode": "id"
+        },
+        "eventId": "={{ $json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        752
+      ],
+      "id": "b145b0ac-73e0-47ab-aa14-8e40a19cae5d",
+      "name": "Delete an event1",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "fmmZNYskUakD2HmE",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a300d835-c6ea-4266-8c6c-7abf559cfdf7",
+              "name": "response",
+              "value": "Cancelei a sua visita conosco, é uma pena, se precisar de algo, estarei por aqui. ",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        880,
+        752
+      ],
+      "id": "e690ee56-2ca2-403b-96fd-cdde555e7b5b",
+      "name": "Edit Fields4"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1056,
+        752
+      ],
+      "id": "d11ec1f3-ae4f-4a30-be5b-e3dcbdf3fdcb",
+      "name": "Respond to Webhook7"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.n8nlabz.com.br",
+            "user-agent": "axios/1.8.3",
+            "content-length": "324",
+            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
+            "accept-encoding": "gzip, compress, deflate, br",
+            "content-type": "application/json",
+            "x-forwarded-for": "172.18.0.1",
+            "x-forwarded-host": "webhook.n8nlabz.com.br",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "3271e4ed253d",
+            "x-real-ip": "172.18.0.1"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "data_e_hora": "2025-08-27T15:00:00",
+            "funcao": "cancelar",
+            "nome_cliente": "Fernando Riolo",
+            "email_cliente": "fernando.riolo01@gmail.com",
+            "id_do_imovel": "15",
+            "sessionId": "c280aff7-9fc6-4e5d-b734-a8723a58b65c",
+            "telefone": "5519994419319",
+            "funcionario": "2bcd9a18-f6e1-47d4-8ac4-05ca42688908",
+            "tentativa": "2",
+            "data_original": "2025-08-26T15:00:00-03:00"
+          },
+          "webhookUrl": "https://webhook.n8nlabz.com.br/webhook/agenda_corretor",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get many rows1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Get availability in a calendar7",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get availability in a calendar7": {
+      "main": [
+        [
+          {
+            "node": "Switch2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch2": {
+      "main": [
+        [
+          {
+            "node": "Get many events",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events": {
+      "main": [
+        [
+          {
+            "node": "Update an event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields7": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update an event": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook4": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Update a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get availability in a calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get availability in a calendar": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch3": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows1": {
+      "main": [
+        [
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get availability in a calendar1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get availability in a calendar1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Get many events1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields10": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events1": {
+      "main": [
+        [
+          {
+            "node": "Delete an event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete an event": {
+      "main": [
+        [
+          {
+            "node": "Create an event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an event": {
+      "main": [
+        [
+          {
+            "node": "Update a row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a row1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items2": {
+      "main": [
+        [
+          {
+            "node": "Code6",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get availability in a calendar2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get availability in a calendar2": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code6": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a row": {
+      "main": [
+        [
+          {
+            "node": "Get a row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a row1": {
+      "main": [
+        [
+          {
+            "node": "Code7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code7": {
+      "main": [
+        [
+          {
+            "node": "Get many events2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events2": {
+      "main": [
+        [
+          {
+            "node": "Delete an event1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete an event1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields4": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2b57b0a3-e638-41df-9fcd-f1dce627eec4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "af2c2dce58b7b891043a58fa084cb85b78cc3ee626cfa19de4b473f0aab51bb8"
+  },
+  "id": "8al11Qtq3GSZXiDU",
+  "tags": []
+}
