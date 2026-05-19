@@ -29,9 +29,9 @@ Frontend imobiliario em `Vite + React + TypeScript`, publicado em container `Ngi
 Crie um `.env` local na raiz do projeto com:
 
 ```env
-VITE_SUPABASE_URL=https://supabase-imobdashboard.26121997.xyz
+VITE_SUPABASE_URL=https://supabase-imobdashboard.seudominio.com
 VITE_SUPABASE_ANON_KEY=COLE_A_ANON_KEY_DO_SUPABASE_NOVO
-VITE_EVOLUTION_API_URL=https://evolution.26121997.xyz
+VITE_EVOLUTION_API_URL=https://evolution.seudominio.com
 VITE_EVOLUTION_API_KEY=COLE_A_API_KEY_DA_EVOLUTION
 VITE_DEFAULT_NEW_USER_PASSWORD=Imobi@1234
 VITE_ENABLE_ANON_LOGIN=false
@@ -131,7 +131,7 @@ Depois de aplicar as migrations no Supabase novo:
 
 Login usado no deploy validado:
 
-- Email: `wervelin.206@gmail.com`
+- Email: `seuemail@gmail.com`
 - Senha: `Imobi@1234`
 
 Troque essa senha depois do primeiro acesso.
